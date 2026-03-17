@@ -325,24 +325,24 @@ services:
           cpus: '0.1'
           memory: '32M'
 
-freeradius:
-  image: freeradius/freeradius-server:3.2.7-alpine
-  container_name: hotspot-freeradius
-  entrypoint: ["/bin/sh", "/entrypoint.sh"]
-  ports:
-    - "1812:1812/udp"
-    - "1813:1813/udp"
-  volumes:
-    - ./config/radius/entrypoint.sh:/entrypoint.sh:ro
-    - ./config/radius/clients.conf:/opt/etc/raddb/clients.conf.template:ro
-    - ./config/radius/mods-enabled/rest.conf:/opt/etc/raddb/mods-enabled/rest:ro
-    - ./config/radius/sites-enabled/default:/tmp/radius-default:ro  # ← file, not dir
-  environment:
-    - TZ=Europe/Istanbul
-    - SHARED_PASSWORD=${SHARED_PASSWORD}
-  restart: unless-stopped
-  networks:
-    - internal_network
+  freeradius:
+    image: freeradius/freeradius-server:3.2.7-alpine
+    container_name: hotspot-freeradius
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    volumes:
+      - ./config/radius/entrypoint.sh:/entrypoint.sh:ro
+      - ./config/radius/clients.conf:/opt/etc/raddb/clients.conf.template:ro
+      - ./config/radius/mods-enabled/rest.conf:/opt/etc/raddb/mods-enabled/rest:ro
+      - ./config/radius/sites-enabled/default:/tmp/radius-default:ro  # ← file, not dir
+    environment:
+      - TZ=Europe/Istanbul
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - internal_network
 
   openldap:
     image: osixia/openldap:1.5.0
