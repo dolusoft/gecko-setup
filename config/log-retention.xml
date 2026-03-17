@@ -63,8 +63,8 @@
         <buffer_size_rows_flush_threshold>524288</buffer_size_rows_flush_threshold>
         <flush_on_crash>false</flush_on_crash>
     </metric_log>
-	
-	<opentelemetry_span_log replace="true">
+
+    <opentelemetry_span_log replace="true">
         <database>system</database>
         <table>opentelemetry_span_log</table>
         <partition_by>toYYYYMM(finish_date)</partition_by>
