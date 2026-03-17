@@ -1,0 +1,15 @@
+dn: ou=hotspot-users,dc=gecko,dc=local
+objectClass: organizationalUnit
+ou: hotspot-users
+description: Hotspot portal users
+
+dn: uid=testuser,ou=hotspot-users,dc=gecko,dc=local
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+uid: testuser
+cn: Test User
+sn: User
+mail: testuser@gecko.local
+userPassword: ${SHARED_PASSWORD}

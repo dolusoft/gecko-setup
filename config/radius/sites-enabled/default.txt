@@ -1,0 +1,42 @@
+server default {
+    listen {
+        type = auth
+        ipaddr = *
+        port = 1812
+    }
+    listen {
+        type = acct
+        ipaddr = *
+        port = 1813
+    }
+    authorize {
+        filter_username
+        preprocess
+        rest
+        if (ok) {
+            update control {
+                Auth-Type := Accept
+            }
+        }
+    }
+    authenticate {
+        Auth-Type Accept {
+            ok
+        }
+    }
+    preacct {
+        preprocess
+        acct_unique
+    }
+    accounting {
+        rest
+    }
+    post-auth {
+        update {
+            &reply: += &session-state:
+        }
+        Post-Auth-Type REJECT {
+            attr_filter.access_reject
+        }
+    }
+}
