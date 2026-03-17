@@ -1,0 +1,570 @@
+services:
+  # Gecko application services
+  # Note: Start infrastructure services first with docker-infra-compose.yml
+
+  frontend:
+    container_name: frontend
+    image: ${LOCAL_REGISTRY}/app-ui:rc
+    restart: always
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "-k", "https://localhost:443/nginx_status" ]
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - GATEWAY_PROTOCOL=https
+      - GATEWAY_HOST=gatewayapi
+      - GATEWAY_PORT=5101
+      - GATEWAY_API_VERSION=v0
+    networks:
+      - internal_network
+    ports:
+      - 443:443
+      - 24678:24678
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '160M'
+
+  authentication:
+      container_name: authentication
+      hostname: authentication
+      image: ${LOCAL_REGISTRY}/authentication-ui:rc
+      restart: always
+      depends_on:
+        coreapi:
+          condition: service_healthy
+      healthcheck:
+        test: [ "CMD", "curl", "-f", "-k", "https://localhost:3005/nginx_status" ]
+        timeout: 10s
+        start_period: 60s
+        retries: 3
+      environment:
+        - CORE_API=http://coreapi:8080
+        - SHARED_PASSWORD=${SHARED_PASSWORD}
+        - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+        - GATEWAY_PROTOCOL=https
+        - GATEWAY_HOST=gatewayapi
+        - GATEWAY_PORT=5101
+        - GATEWAY_API_VERSION=v0
+      networks:
+        - internal_network
+      ports:
+        - 3004:3004
+        - 3005:3005
+      deploy:
+        resources:
+          limits:
+            cpus: '0.3'
+            memory: '160M'
+          reservations:
+            cpus: '0.1'
+            memory: '80M'
+
+  docs:
+    container_name: docs
+    image: ${LOCAL_REGISTRY}/docs-ui:rc
+    restart: always
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "-k", "https://localhost:3015/" ]
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      # Gateway API configuration (for startup.sh)
+      - GATEWAY_PROTOCOL=https
+      - GATEWAY_HOST=gatewayapi
+      - GATEWAY_PORT=5101
+      - GATEWAY_API_VERSION=v0
+    networks:
+      - internal_network
+    ports:
+      - 3013:3013
+      - 3014:3014
+      - 3015:3015
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '200M'
+        reservations:
+          cpus: '0.2'
+          memory: '100M'
+
+  gatewayapi:
+    container_name: gatewayapi
+    image: ${LOCAL_REGISTRY}/gatewayapi:rc
+    restart: always
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    networks:
+      - internal_network
+    ports:
+      - 5100:5100
+      - 5101:5101
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  coreapi:
+    container_name: coreapi
+    hostname: coreapi
+    image: ${LOCAL_REGISTRY}/coreapi:rc
+    restart: always
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    # Note: Depends on mongodb and kafka-1 from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  identityapi:
+    container_name: identityapi
+    hostname: identityapi
+    image: ${LOCAL_REGISTRY}/identityapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  layoutapi:
+    container_name: layoutapi
+    hostname: layoutapi
+    image: ${LOCAL_REGISTRY}/layoutapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  resolverapi:
+    container_name: resolverapi
+    hostname: resolverapi
+    image: ${LOCAL_REGISTRY}/resolverapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  collectorapi:
+    container_name: collectorapi
+    hostname: collectorapi
+    image: ${LOCAL_REGISTRY}/collectorapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on clickhouse from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: '600M'
+        reservations:
+          cpus: '0.2'
+          memory: '100M'
+
+  senderapi:
+    container_name: senderapi
+    hostname: senderapi
+    image: ${LOCAL_REGISTRY}/senderapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  reportapi:
+    container_name: reportapi
+    hostname: reportapi
+    image: ${LOCAL_REGISTRY}/reportapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  alertapi:
+    container_name: alertapi
+    hostname: alertapi
+    image: ${LOCAL_REGISTRY}/alertapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  managerapi:
+    container_name: managerapi
+    hostname: managerapi
+    image: ${LOCAL_REGISTRY}/managerapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/host_proc:ro
+      - /sys:/host_sys:ro
+    user: root
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: '200M'
+        reservations:
+          cpus: '0.15'
+          memory: '100M'
+
+  updater:
+    container_name: updater
+    hostname: updater
+    image: ${LOCAL_REGISTRY}/updater:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+    environment:
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - DOTNET_ENVIRONMENT=DockerTest
+      - CORE_API=http://coreapi:8080
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  listener-1:
+    container_name: listener-1
+    hostname: listener-1
+    image: ${LOCAL_REGISTRY}/listener:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      preprocessor:
+        condition: service_started
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    expose:
+      - "514/udp"
+    # Note: Also depends on kafka-1 from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '100M'
+        reservations:
+          cpus: '0.5'
+          memory: '50M'
+
+  listener-2:
+    container_name: listener-2
+    hostname: listener-2
+    image: ${LOCAL_REGISTRY}/listener:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      preprocessor:
+        condition: service_started
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    expose:
+      - "514/udp"
+    # Note: Also depends on kafka-1 from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '100M'
+        reservations:
+          cpus: '0.5'
+          memory: '50M'
+
+  preprocessor:
+    container_name: preprocessor
+    hostname: preprocessor
+    image: ${LOCAL_REGISTRY}/preprocessor:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      collectorapi:
+        condition: service_started
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on kafka-1 and clickhouse from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '2G'
+        reservations:
+          cpus: '0.5'
+          memory: '100M'
+
+  sinker:
+    container_name: sinker
+    hostname: sinker
+    image: ${LOCAL_REGISTRY}/sinker:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '4G'
+        reservations:
+          cpus: '0.5'
+          memory: '100M'
+
+  signexporter:
+    container_name: signexporter
+    hostname: signexporter
+    image: ${LOCAL_REGISTRY}/signexporter:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - CORE_API=http://coreapi:8080
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on minio and kafka-1 from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '1G'
+        reservations:
+          cpus: '0.2'
+          memory: '40M'
+
+  filetransfer:
+    container_name: filetransfer
+    hostname: filetransfer
+    image: ${LOCAL_REGISTRY}/filetransfer:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      identityapi:
+        condition: service_healthy
+    environment:
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - CORE_API=http://coreapi:8080
+      - IDENTITY_API=https://identityapi:8081
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on minio from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: '800M'
+        reservations:
+          cpus: '0.3'
+          memory: '150M'
+
+  hotspotapi:
+    container_name: hotspotapi
+    hostname: hotspotapi
+    image: ${LOCAL_REGISTRY}/hotspotapi:rc
+    depends_on:
+      - coreapi
+    environment:
+      - ASPNETCORE_HTTP_PORTS=8080
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+        - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '160M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+networks:
+  internal_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
