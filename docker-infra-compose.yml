@@ -328,7 +328,7 @@ services:
   freeradius:
     image: freeradius/freeradius-server:3.2.7-alpine
     container_name: hotspot-freeradius
-    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    entrypoint: [ "/bin/sh", "/entrypoint.sh" ]
     ports:
       - "1812:1812/udp"
       - "1813:1813/udp"
@@ -336,7 +336,7 @@ services:
       - ./config/radius/entrypoint.sh:/entrypoint.sh:ro
       - ./config/radius/clients.conf:/opt/etc/raddb/clients.conf.template:ro
       - ./config/radius/mods-enabled/rest.conf:/opt/etc/raddb/mods-enabled/rest:ro
-      - ./config/radius/sites-enabled/default:/tmp/radius-default:ro  # ← file, not dir
+      - ./config/radius/sites-enabled/default:/tmp/radius-default:ro # ← file, not dir
     environment:
       - TZ=Europe/Istanbul
       - SHARED_PASSWORD=${SHARED_PASSWORD}
@@ -347,7 +347,7 @@ services:
   openldap:
     image: osixia/openldap:1.5.0
     container_name: hotspot-openldap
-    entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh", "--copy-service"]
+    entrypoint: [ "/bin/bash", "/entrypoint-wrapper.sh", "--copy-service" ]
     ports:
       - "389:389"
       - "636:636"
@@ -367,7 +367,7 @@ services:
       - ./config/ldap/bootstrap.ldif:/tmp/bootstrap.ldif.template:ro
     restart: unless-stopped
     networks:
-        - internal_network
+      - internal_network
 
   phpldapadmin:
     image: osixia/phpldapadmin:0.9.0
@@ -378,10 +378,10 @@ services:
       - PHPLDAPADMIN_LDAP_HOSTS=hotspot-openldap
       - PHPLDAPADMIN_HTTPS=false
     depends_on:
-        - openldap
+      - openldap
     restart: unless-stopped
     networks:
-        - internal_network
+      - internal_network
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -398,7 +398,7 @@ services:
       kafka-2:
         condition: service_healthy
     environment:
-      KAFKA_CLUSTERS_0_NAME: [IP-HERE]
+      KAFKA_CLUSTERS_0_NAME: [ IP-HERE ]
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9092,kafka-2:9092
     deploy:
       resources:
