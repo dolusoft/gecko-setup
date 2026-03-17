@@ -15,15 +15,15 @@ services:
       - internal_network
     depends_on:
       kafka-controller:
-        condition: service_started # Health check beklemeden
+        condition: service_started
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.10:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://0.0.0.0:19092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://[IP-HERE]:19092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
@@ -36,7 +36,6 @@ services:
       KAFKA_LOG_RETENTION_BYTES: -1
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 1800000
       CLUSTER_ID: 'KafkaKRaftCluster'
-      # Registration timeout artırma
       KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 60000
       KAFKA_REQUEST_TIMEOUT_MS: 30000
       KAFKA_METADATA_REQUEST_TIMEOUT_MS: 60000
@@ -72,9 +71,9 @@ services:
       KAFKA_PROCESS_ROLES: broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.10:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://[IP-HERE]:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
@@ -87,7 +86,6 @@ services:
       KAFKA_LOG_RETENTION_BYTES: -1
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 1800000
       CLUSTER_ID: 'KafkaKRaftCluster'
-      # Registration timeout artırma
       KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 60000
       KAFKA_REQUEST_TIMEOUT_MS: 30000
       KAFKA_METADATA_REQUEST_TIMEOUT_MS: 60000
@@ -110,8 +108,6 @@ services:
     networks:
       internal_network:
         ipv4_address: 172.20.0.10
-    ports:
-      - "39093:39093"
     environment:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: controller
@@ -141,13 +137,8 @@ services:
       - internal_network
     hostname: clickhouse
     volumes:
-      # Ana config dosyası
-      # - ./config/clickhouse-config.xml:/etc/clickhouse-server/config.d/clickhouse-config.xml
-      # Users config (optional, varsayılan user'ı override etmek için)
       - ./config/users.xml:/etc/clickhouse-server/users.d/users.xml
-      # Log retention config
       - ./config/log-retention.xml:/etc/clickhouse-server/users.d/log-retention.xml
-      # Data volume
       - clickhouse-data:/var/lib/clickhouse
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
@@ -161,12 +152,9 @@ services:
     ports:
       - "8124:8123"
       - "9001:9000"
-    # Kernel parametreler için (production'da host'ta da yapılmalı)
-
     sysctls:
       - net.core.somaxconn=65535
       - net.ipv4.tcp_max_syn_backlog=65535
-      # Dosya descriptor limit'i
     ulimits:
       nofile:
         soft: 65535
@@ -336,7 +324,7 @@ services:
       - ./config/radius/entrypoint.sh:/entrypoint.sh:ro
       - ./config/radius/clients.conf:/opt/etc/raddb/clients.conf.template:ro
       - ./config/radius/mods-enabled/rest.conf:/opt/etc/raddb/mods-enabled/rest:ro
-      - ./config/radius/sites-enabled/default:/tmp/radius-default:ro # ← file, not dir
+      - ./config/radius/sites-enabled/default:/tmp/radius-default:ro
     environment:
       - TZ=Europe/Istanbul
       - SHARED_PASSWORD=${SHARED_PASSWORD}
@@ -398,7 +386,7 @@ services:
       kafka-2:
         condition: service_healthy
     environment:
-      KAFKA_CLUSTERS_0_NAME: [ IP-HERE ]
+      KAFKA_CLUSTERS_0_NAME: gecko-kafka
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9092,kafka-2:9092
     deploy:
       resources:
@@ -425,7 +413,6 @@ volumes:
   minio_data1:
   openldap-data:
   openldap-config:
-
 
 networks:
   internal_network:
