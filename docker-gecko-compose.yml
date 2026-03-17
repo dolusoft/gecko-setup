@@ -37,39 +37,39 @@ services:
           memory: '160M'
 
   authentication:
-    container_name: authentication
-    hostname: authentication
-    image: ${LOCAL_REGISTRY}/authentication-ui:rc
-    restart: always
-    depends_on:
-      coreapi:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "-k", "https://localhost:3005/nginx_status" ]
-      timeout: 10s
-      start_period: 60s
-      retries: 3
-    environment:
-      - CORE_API=http://coreapi:8080
-      - SHARED_PASSWORD=${SHARED_PASSWORD}
-      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
-      - GATEWAY_PROTOCOL=https
-      - GATEWAY_HOST=gatewayapi
-      - GATEWAY_PORT=5101
-      - GATEWAY_API_VERSION=v0
-    networks:
-      - internal_network
-    ports:
-      - 3004:3004
-      - 3005:3005
-    deploy:
-      resources:
-        limits:
-          cpus: '0.3'
-          memory: '160M'
-        reservations:
-          cpus: '0.1'
-          memory: '80M'
+      container_name: authentication
+      hostname: authentication
+      image: ${LOCAL_REGISTRY}/authentication-ui:rc
+      restart: always
+      depends_on:
+        coreapi:
+          condition: service_healthy
+      healthcheck:
+        test: [ "CMD", "curl", "-f", "-k", "https://localhost:3005/nginx_status" ]
+        timeout: 10s
+        start_period: 60s
+        retries: 3
+      environment:
+        - CORE_API=http://coreapi:8080
+        - SHARED_PASSWORD=${SHARED_PASSWORD}
+        - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+        - GATEWAY_PROTOCOL=https
+        - GATEWAY_HOST=gatewayapi
+        - GATEWAY_PORT=5101
+        - GATEWAY_API_VERSION=v0
+      networks:
+        - internal_network
+      ports:
+        - 3004:3004
+        - 3005:3005
+      deploy:
+        resources:
+          limits:
+            cpus: '0.3'
+            memory: '160M'
+          reservations:
+            cpus: '0.1'
+            memory: '80M'
 
   docs:
     container_name: docs
@@ -552,7 +552,7 @@ services:
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
     restart: always
     networks:
-      - internal_network
+        - internal_network
     deploy:
       resources:
         limits:
