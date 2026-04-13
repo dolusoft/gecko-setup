@@ -14,6 +14,9 @@ services:
       start_period: 40s
     networks:
       - internal_network
+    ports:
+      - "19092:19092"
+      - "19093:19093"
     depends_on:
       kafka-controller:
         condition: service_started
@@ -22,9 +25,9 @@ services:
       KAFKA_PROCESS_ROLES: broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.100:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://172.16.40.25:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
@@ -47,7 +50,7 @@ services:
     volumes:
       - kafka-1-data:/var/lib/kafka/data
       - kafka-1-logs:/opt/kafka/logs
-    stop_grace_period: 5m
+    stop_grace_period: 2m
     deploy:
       resources:
         limits:
@@ -56,6 +59,10 @@ services:
         reservations:
           cpus: '0.5'
           memory: '1G'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   kafka-2:
     image: apache/kafka:3.9.1
@@ -71,6 +78,9 @@ services:
       start_period: 40s
     networks:
       - internal_network
+    ports:
+      - "29092:29092"
+      - "29093:29093"
     depends_on:
       kafka-controller:
         condition: service_started
@@ -79,9 +89,9 @@ services:
       KAFKA_PROCESS_ROLES: broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.100:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://172.16.40.25:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
@@ -104,7 +114,7 @@ services:
     volumes:
       - kafka-2-data:/var/lib/kafka/data
       - kafka-2-logs:/opt/kafka/logs
-    stop_grace_period: 5m
+    stop_grace_period: 2m
     deploy:
       resources:
         limits:
@@ -113,6 +123,10 @@ services:
         reservations:
           cpus: '0.5'
           memory: '1G'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   kafka-3:
     image: apache/kafka:3.9.1
@@ -128,6 +142,8 @@ services:
       start_period: 40s
     networks:
       - internal_network
+    ports:
+      - "39092:39092"
     depends_on:
       kafka-controller:
         condition: service_started
@@ -136,9 +152,9 @@ services:
       KAFKA_PROCESS_ROLES: broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.100:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: PLAINTEXT://kafka-3:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://0.0.0.0:39092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://172.16.40.25:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
@@ -161,7 +177,7 @@ services:
     volumes:
       - kafka-3-data:/var/lib/kafka/data
       - kafka-3-logs:/opt/kafka/logs
-    stop_grace_period: 5m
+    stop_grace_period: 2m
     deploy:
       resources:
         limits:
@@ -170,6 +186,10 @@ services:
         reservations:
           cpus: '0.5'
           memory: '1G'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   kafka-controller:
     image: apache/kafka:3.9.1
@@ -180,6 +200,8 @@ services:
     networks:
       internal_network:
         ipv4_address: 172.20.0.100
+    ports:
+      - "39093:39093"
     environment:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: controller
@@ -194,7 +216,7 @@ services:
     volumes:
       - kafka-controller-data:/var/lib/kafka/data
       - kafka-controller-logs:/opt/kafka/logs
-    stop_grace_period: 3m
+    stop_grace_period: 1m
     deploy:
       resources:
         limits:
@@ -203,6 +225,10 @@ services:
         reservations:
           cpus: '0.3'
           memory: '600M'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   clickhouse:
     image: clickhouse:25.11
@@ -216,6 +242,7 @@ services:
       - ./config/users.xml:/etc/clickhouse-server/users.d/users.xml
       - ./config/log-retention.xml:/etc/clickhouse-server/users.d/log-retention.xml
       - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
       interval: 10s
@@ -380,6 +407,7 @@ services:
       - internal_network
     ports:
       - 514:514/udp
+      - 514:514/tcp
     deploy:
       resources:
         limits:
@@ -464,7 +492,7 @@ services:
       kafka-3:
         condition: service_healthy
     environment:
-      KAFKA_CLUSTERS_0_NAME: gecko-kafka
+      KAFKA_CLUSTERS_0_NAME: 172.16.40.25
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
     deploy:
       resources:
@@ -478,29 +506,116 @@ services:
 volumes:
   chroma-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/chroma-data
+
   kafka-1-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-1-data
+
   kafka-1-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-1-logs
+
   kafka-2-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-2-data
+
   kafka-2-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-2-logs
+
   kafka-3-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-3-data
+
   kafka-3-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-3-logs
+
   kafka-controller-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-controller-data
+
   kafka-controller-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-controller-logs
+
   clickhouse-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/clickhouse-data
+
+  clickhouse-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/clickhouse-logs
+
   redisdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/redisdata
+
   objectdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/objectdata
+
   minio_data1:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/minio_data1
+
   openldap-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/openldap-data
+
   openldap-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/openldap-config
+
 
 networks:
   internal_network:
