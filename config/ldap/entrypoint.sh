@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# ── 1) TLS sertifikaları yoksa self-signed üret ───────────────────────────
+# ── 1) Generate self-signed TLS certificates if missing ──────────────────
 CERT_DIR="/container/service/slapd/assets/certs"
 HOSTNAME="hotspot-openldap.gecko.local"
 
 if [ ! -f "$CERT_DIR/ldap.crt" ]; then
-    echo "[entrypoint] TLS sertifikaları yok, üretiliyor..."
+    echo "[entrypoint] TLS certificates not found, generating..."
     mkdir -p "$CERT_DIR"
     cd "$CERT_DIR"
 
@@ -30,15 +30,15 @@ EOF
     chown -R openldap:openldap .
     rm -f ldap.csr san.ext ca.srl
     cd /
-    echo "[entrypoint] Sertifikalar üretildi."
+    echo "[entrypoint] Certificates generated."
 fi
 
-# ── 2) Bootstrap LDIF'i env var interpolation ile hazırla ─────────────────
+# ── 2) Render bootstrap LDIF with env var interpolation ──────────────────
 TEMPLATE="/tmp/bootstrap.ldif.template"
 TARGET="/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif"
 if [ -f "$TEMPLATE" ]; then
     sed "s|\${SHARED_PASSWORD}|${SHARED_PASSWORD}|g" "$TEMPLATE" > "$TARGET"
 fi
 
-# ── 3) osixia'nın orijinal entrypoint'ine devret ──────────────────────────
+# ── 3) Hand off to osixia's original entrypoint ──────────────────────────
 exec /container/tool/run "$@"
