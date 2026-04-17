@@ -60,6 +60,7 @@ services:
       networks:
         - internal_network
       ports:
+        - 80:80
         - 3004:3004
         - 3005:3005
       deploy:
