@@ -60,6 +60,18 @@ services:
       - kafka-1-data:/var/lib/kafka/data
       - kafka-1-logs:/opt/kafka/logs
     stop_grace_period: 2m
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '3G'
+        reservations:
+          cpus: '0.5'
+          memory: '1G'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   kafka-2:
     image: apache/kafka:3.9.1
@@ -121,6 +133,18 @@ services:
       - kafka-2-data:/var/lib/kafka/data
       - kafka-2-logs:/opt/kafka/logs
     stop_grace_period: 2m
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '3G'
+        reservations:
+          cpus: '0.5'
+          memory: '1G'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   kafka-3:
     image: apache/kafka:3.9.1
@@ -181,6 +205,18 @@ services:
       - kafka-3-data:/var/lib/kafka/data
       - kafka-3-logs:/opt/kafka/logs
     stop_grace_period: 2m
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '3G'
+        reservations:
+          cpus: '0.5'
+          memory: '1G'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   kafka-controller:
     image: apache/kafka:3.9.1
@@ -208,6 +244,18 @@ services:
       - kafka-controller-data:/var/lib/kafka/data
       - kafka-controller-logs:/opt/kafka/logs
     stop_grace_period: 1m
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '2560M'
+        reservations:
+          cpus: '0.3'
+          memory: '600M'
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   clickhouse:
     image: clickhouse:25.11
@@ -221,6 +269,7 @@ services:
       - ./config/users.xml:/etc/clickhouse-server/users.d/users.xml
       - ./config/log-retention.xml:/etc/clickhouse-server/users.d/log-retention.xml
       - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
       interval: 10s
@@ -297,15 +346,12 @@ services:
     restart: always
     networks:
       - internal_network
-    expose:
-      - "9000"
     ports:
-      - "9002:9001"
       - "9003:9000"
+      - "9002:9001"
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: test2023!!
-      MINIO_SERVER_URL: "http://minio:9000"
       MINIO_AUDIT_KAFKA_ENABLE: "on"
       MINIO_AUDIT_KAFKA_BROKERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
       MINIO_AUDIT_KAFKA_TOPIC: "bucket-events"
@@ -322,24 +368,6 @@ services:
         reservations:
           cpus: '1.0'
           memory: '400M'
-
-  minio-init:
-    image: minio/mc:latest
-    container_name: minio-init
-    restart: "no"
-    networks:
-      - internal_network
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 admin 'test2023!!'; do
-        echo 'Waiting for MinIO...'; sleep 2;
-      done;
-      mc mb --ignore-existing local/hotspot-assets;
-      mc anonymous set public local/hotspot-assets;
-      echo 'MinIO init complete';
-      "
 
   otelcollector:
     image: otel/opentelemetry-collector-contrib:0.126.0
@@ -392,29 +420,6 @@ services:
           cpus: '0.1'
           memory: '30M'
 
-  content-nginx:
-    container_name: content-nginx
-    hostname: content-nginx
-    image: nginx:1.27-alpine
-    restart: always
-    networks:
-      - internal_network
-    ports:
-      - "9190:8090"
-    volumes:
-      - ./config/content-nginx.conf:/etc/nginx/nginx.conf:ro
-      - content_nginx_cache:/var/cache/nginx/content
-    depends_on:
-      - minio
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: '512M'
-        reservations:
-          cpus: '0.1'
-          memory: '64M'
-
   nginx-lb:
     container_name: nginx-lb
     hostname: nginx-lb
@@ -457,29 +462,36 @@ services:
     networks:
      - internal_network
 
-  openldap:
-    image: osixia/openldap:1.5.0
-    container_name: hotspot-openldap
-    entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh", "--copy-service"]
-    ports:
-      - "389:389"
-      - "636:636"
-    environment:
-      - LDAP_ORGANISATION=Gecko Project
-      - LDAP_DOMAIN=gecko.local
-      - LDAP_ADMIN_PASSWORD=${SHARED_PASSWORD}
-      - LDAP_CONFIG_PASSWORD=${SHARED_PASSWORD}
-      - LDAP_TLS=false
-      - LDAP_TLS_VERIFY_CLIENT=never
-      - LDAP_REMOVE_CONFIG_AFTER_SETUP=false
-      - SHARED_PASSWORD=${SHARED_PASSWORD}
-    volumes:
-      - openldap-data:/var/lib/ldap
-      - openldap-config:/etc/ldap/slapd.d
-      - ./config/ldap/entrypoint.sh:/entrypoint-wrapper.sh:ro
-      - ./config/ldap/bootstrap.ldif:/tmp/bootstrap.ldif.template:ro
-    restart: unless-stopped
-    networks:
+    openldap:
+      image: osixia/openldap:1.5.0
+      container_name: hotspot-openldap
+      hostname: hotspot-openldap.gecko.local
+      entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh", "--copy-service"]
+      ports:
+        - "389:389"
+        - "636:636"
+      environment:
+        - LDAP_ORGANISATION=Gecko Project
+        - LDAP_DOMAIN=gecko.local
+        - LDAP_ADMIN_PASSWORD=${SHARED_PASSWORD}
+        - LDAP_CONFIG_PASSWORD=${SHARED_PASSWORD}
+        - LDAP_TLS=true
+        - LDAP_TLS_CRT_FILENAME=ldap.crt
+        - LDAP_TLS_KEY_FILENAME=ldap.key
+        - LDAP_TLS_CA_CRT_FILENAME=ca.crt
+        - LDAP_TLS_ENFORCE=false
+        - LDAP_TLS_VERIFY_CLIENT=never
+        - LDAP_TLS_PROTOCOL_MIN=3.1
+        - LDAP_REMOVE_CONFIG_AFTER_SETUP=false
+        - SHARED_PASSWORD=${SHARED_PASSWORD}
+      volumes:
+        - openldap-data:/var/lib/ldap
+        - openldap-config:/etc/ldap/slapd.d
+        - openldap-certs:/container/service/slapd/assets/certs
+        - ./config/ldap/entrypoint.sh:/entrypoint-wrapper.sh:ro
+        - ./config/ldap/bootstrap.ldif:/tmp/bootstrap.ldif.template:ro
+      restart: unless-stopped
+      networks:
         - internal_network
 
   phpldapadmin:
@@ -513,7 +525,7 @@ services:
       kafka-3:
         condition: service_healthy
     environment:
-      KAFKA_CLUSTERS_0_NAME: gecko-kafka
+      KAFKA_CLUSTERS_0_NAME: 172.16.40.25
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
     deploy:
       resources:
@@ -527,31 +539,122 @@ services:
 volumes:
   chroma-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/chroma-data
+
   kafka-1-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-1-data
+
   kafka-1-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-1-logs
+
   kafka-2-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-2-data
+
   kafka-2-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-2-logs
+
   kafka-3-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-3-data
+
   kafka-3-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-3-logs
+
   kafka-controller-data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-controller-data
+
   kafka-controller-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/kafka-controller-logs
+
   clickhouse-data:
     driver: local
-  redisdata:
-  objectdata:
-  minio_data1:
-  content_nginx_cache:
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/clickhouse-data
+
+  clickhouse-logs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/clickhouse-logs
+
+  redisdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/redisdata
+
+  objectdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/objectdata
+
+  minio_data1:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/minio_data1
+
   openldap-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/openldap-data
+
   openldap-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/openldap-config
+
+  openldap-certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd/openldap-certs
 
 networks:
   internal_network:
