@@ -540,6 +540,89 @@ services:
           cpus: '0.3'
           memory: '150M'
 
+  correlation-engine:
+    container_name: correlation-engine
+    hostname: correlation-engine
+    image: ${LOCAL_REGISTRY}/correlation-engine:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      alertapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - APP_ACTIVE_RULES_URL=http://alertapi:8080/rules/all
+      - APP_KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092
+      - APP_CLICKHOUSE_SERVERS=clickhouse:9000
+      - APP_REDIS_ADDRESS=redis:6379
+      - APP_OTEL_ENDPOINT=otel-collector:4317
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '2G'
+        reservations:
+          cpus: '0.5'
+          memory: '100M'
+
+  alert-notifier:
+    container_name: alert-notifier
+    hostname: alert-notifier
+    image: ${LOCAL_REGISTRY}/alert-notifier:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      alertapi:
+        condition: service_healthy
+    environment:
+      - APP_CONFIG_URL=http://coreapi:8080
+      - ALERT_API_POLICIES_URL=http://alertapi:8080/policies/all
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - REDIS_PASSWORD=${SERVICE_PASSWORD}
+      - APP_REDIS_ADDRESS=redis:6380
+      - APP_KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092
+      - OTEL_COLLECTOR_ENDPOINT=${OTEL_ENDPOINT:-otel-collector:4317}
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on clickhouse from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '100M'
+        reservations:
+          cpus: '0.1'
+          memory: '40M'
+
+  contentapi:
+    container_name: contentapi
+    hostname: contentapi
+    image: ${LOCAL_REGISTRY}/contentapi:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+    environment:
+      - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+    restart: always
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '256M'
+        reservations:
+          cpus: '0.2'
+          memory: '64M'
+
   hotspotapi:
     container_name: hotspotapi
     hostname: hotspotapi

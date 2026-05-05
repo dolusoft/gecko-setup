@@ -292,12 +292,15 @@ services:
     restart: always
     networks:
       - internal_network
+    expose:
+      - "9000"
     ports:
-      - "9003:9000"
       - "9002:9001"
+      - "9003:9000"
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: test2023!!
+      MINIO_SERVER_URL: "http://minio:9000"
       MINIO_AUDIT_KAFKA_ENABLE: "on"
       MINIO_AUDIT_KAFKA_BROKERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
       MINIO_AUDIT_KAFKA_TOPIC: "bucket-events"
@@ -314,6 +317,24 @@ services:
         reservations:
           cpus: '1.0'
           memory: '400M'
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    restart: "no"
+    networks:
+      - internal_network
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 admin 'test2023!!'; do
+        echo 'Waiting for MinIO...'; sleep 2;
+      done;
+      mc mb --ignore-existing local/hotspot-assets;
+      mc anonymous set public local/hotspot-assets;
+      echo 'MinIO init complete';
+      "
 
   otelcollector:
     image: otel/opentelemetry-collector-contrib:0.126.0
@@ -365,6 +386,29 @@ services:
         reservations:
           cpus: '0.1'
           memory: '30M'
+
+  content-nginx:
+    container_name: content-nginx
+    hostname: content-nginx
+    image: nginx:1.27-alpine
+    restart: always
+    networks:
+      - internal_network
+    ports:
+      - "9190:8090"
+    volumes:
+      - ./config/content-nginx.conf:/etc/nginx/nginx.conf:ro
+      - content_nginx_cache:/var/cache/nginx/content
+    depends_on:
+      - minio
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+        reservations:
+          cpus: '0.1'
+          memory: '64M'
 
   nginx-lb:
     container_name: nginx-lb
@@ -506,6 +550,8 @@ volumes:
   redisdata:
   objectdata:
   minio_data1:
+  content_nginx_cache:
+    driver: local
   openldap-data:
   openldap-config:
   openldap-certs:
