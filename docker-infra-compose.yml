@@ -458,32 +458,47 @@ services:
      - internal_network
 
   openldap:
-    image: osixia/openldap:1.5.0
+    image: osixia/openldap:latest
     container_name: hotspot-openldap
-    entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh", "--copy-service"]
+    hostname: hotspot-openldap.gecko.local
     ports:
-      - "389:389"
-      - "636:636"
+      - "3890:389"
+      - "6360:636"
     environment:
       - LDAP_ORGANISATION=Gecko Project
       - LDAP_DOMAIN=gecko.local
       - LDAP_ADMIN_PASSWORD=${SHARED_PASSWORD}
       - LDAP_CONFIG_PASSWORD=${SHARED_PASSWORD}
-      - LDAP_TLS=false
+      - LDAP_TLS=true
       - LDAP_TLS_VERIFY_CLIENT=never
-      - LDAP_REMOVE_CONFIG_AFTER_SETUP=false
-      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - LDAP_TLS_ENFORCE=false
     volumes:
+      - openldap-conf:/etc/ldap/slapd.d
       - openldap-data:/var/lib/ldap
-      - openldap-config:/etc/ldap/slapd.d
-      - ./config/ldap/entrypoint.sh:/entrypoint-wrapper.sh:ro
-      - ./config/ldap/bootstrap.ldif:/tmp/bootstrap.ldif.template:ro
+      - openldap-backups:/var/lib/openldap/openldap-backups
+      - ./config/ldap/bootstrap-rendered:/container/service/slapd/assets/config/bootstrap/ldif/custom
     restart: unless-stopped
     networks:
-        - internal_network
+      - internal_network
+
+  openldap-init:
+    image: osixia/openldap:latest
+    container_name: hotspot-openldap-init
+    restart: "no"
+    networks:
+      - internal_network
+    depends_on:
+      - openldap
+    environment:
+      - LDAP_ADMIN_PASSWORD=${SHARED_PASSWORD}
+      - LDAP_ADMIN_DN=cn=admin,dc=gecko,dc=local
+    volumes:
+      - ./config/ldap/bootstrap-rendered:/bootstrap:ro
+      - ./config/ldap/bootstrap-init.sh:/bootstrap-init.sh:ro
+    entrypoint: /bin/sh /bootstrap-init.sh
 
   phpldapadmin:
-    image: osixia/phpldapadmin:0.9.0
+    image: osixia/phpldapadmin:latest
     container_name: hotspot-phpldapadmin
     ports:
       - "8080:80"
@@ -491,10 +506,10 @@ services:
       - PHPLDAPADMIN_LDAP_HOSTS=hotspot-openldap
       - PHPLDAPADMIN_HTTPS=false
     depends_on:
-        - openldap
+      - openldap
     restart: unless-stopped
     networks:
-        - internal_network
+      - internal_network
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -550,8 +565,9 @@ volumes:
   minio_data1:
   content_nginx_cache:
     driver: local
+  openldap-conf:
   openldap-data:
-  openldap-config:
+  openldap-backups:
 
 networks:
   internal_network:
