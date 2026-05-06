@@ -623,6 +623,32 @@ services:
           cpus: '0.2'
           memory: '64M'
 
+  fileexporter:
+    container_name: fileexporter
+    hostname: fileexporter
+    image: ${LOCAL_REGISTRY}/dolusoftcomp/fileexporter:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      identityapi:
+        condition: service_healthy
+    environment:
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - CORE_API=http://coreapi:8080
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on minio, kafka-1, and clickhouse from infrastructure services
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '2G'
+        reservations:
+          cpus: '0.5'
+          memory: '200M'
+
   hotspotapi:
     container_name: hotspotapi
     hostname: hotspotapi
