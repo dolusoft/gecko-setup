@@ -337,7 +337,7 @@ services:
         echo 'Waiting for MinIO...'; sleep 2;
       done;
       mc mb --ignore-existing local/hotspot-assets;
-      mc anonymous set public local/hotspot-assets;
+      mc anonymous set download local/hotspot-assets;
       echo 'MinIO init complete';
       "
 
