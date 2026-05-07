@@ -338,6 +338,7 @@ services:
       done;
       mc mb --ignore-existing local/hotspot-assets;
       mc anonymous set download local/hotspot-assets;
+      mc mb --ignore-existing local/exports;
       echo 'MinIO init complete';
       "
 
