@@ -23,10 +23,10 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.100:39093'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '3@kafka-controller:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://0.0.0.0:19092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://172.16.40.25:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://172.16.40.167:19092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -84,10 +84,10 @@ services:
     environment:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: broker
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.100:39093'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '3@kafka-controller:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://172.16.40.25:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://172.16.40.167:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -144,10 +144,10 @@ services:
     environment:
       KAFKA_NODE_ID: 4
       KAFKA_PROCESS_ROLES: broker
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '3@172.20.0.100:39093'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '3@kafka-controller:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://0.0.0.0:39092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://172.16.40.25:39092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://172.16.40.167:39092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -297,12 +297,15 @@ services:
     restart: always
     networks:
       - internal_network
+    expose:
+      - "9000"
     ports:
-      - "9003:9000"
       - "9002:9001"
+      - "9003:9000"
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: test2023!!
+      MINIO_SERVER_URL: "http://minio:9000"
       MINIO_AUDIT_KAFKA_ENABLE: "on"
       MINIO_AUDIT_KAFKA_BROKERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
       MINIO_AUDIT_KAFKA_TOPIC: "bucket-events"
@@ -319,6 +322,25 @@ services:
         reservations:
           cpus: '1.0'
           memory: '400M'
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    restart: "no"
+    networks:
+      - internal_network
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 admin 'test2023!!'; do
+        echo 'Waiting for MinIO...'; sleep 2;
+      done;
+      mc mb --ignore-existing local/hotspot-assets;
+      mc anonymous set download local/hotspot-assets;
+      mc mb --ignore-existing local/exports;
+      echo 'MinIO init complete';
+      "
 
   otelcollector:
     image: otel/opentelemetry-collector-contrib:0.126.0
@@ -371,6 +393,29 @@ services:
           cpus: '0.1'
           memory: '30M'
 
+  content-nginx:
+    container_name: content-nginx
+    hostname: content-nginx
+    image: nginx:1.27-alpine
+    restart: always
+    networks:
+      - internal_network
+    ports:
+      - "9190:8090"
+    volumes:
+      - ./config/content-nginx.conf:/etc/nginx/nginx.conf:ro
+      - content_nginx_cache:/var/cache/nginx/content
+    depends_on:
+      - minio
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+        reservations:
+          cpus: '0.1'
+          memory: '64M'
+
   nginx-lb:
     container_name: nginx-lb
     hostname: nginx-lb
@@ -414,32 +459,47 @@ services:
      - internal_network
 
   openldap:
-    image: osixia/openldap:1.5.0
+    image: osixia/openldap:latest
     container_name: hotspot-openldap
-    entrypoint: ["/bin/bash", "/entrypoint-wrapper.sh", "--copy-service"]
+    hostname: hotspot-openldap.gecko.local
     ports:
-      - "389:389"
-      - "636:636"
+      - "3890:389"
+      - "6360:636"
     environment:
       - LDAP_ORGANISATION=Gecko Project
       - LDAP_DOMAIN=gecko.local
       - LDAP_ADMIN_PASSWORD=${SHARED_PASSWORD}
       - LDAP_CONFIG_PASSWORD=${SHARED_PASSWORD}
-      - LDAP_TLS=false
+      - LDAP_TLS=true
       - LDAP_TLS_VERIFY_CLIENT=never
-      - LDAP_REMOVE_CONFIG_AFTER_SETUP=false
-      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - LDAP_TLS_ENFORCE=false
     volumes:
+      - openldap-conf:/etc/ldap/slapd.d
       - openldap-data:/var/lib/ldap
-      - openldap-config:/etc/ldap/slapd.d
-      - ./config/ldap/entrypoint.sh:/entrypoint-wrapper.sh:ro
-      - ./config/ldap/bootstrap.ldif:/tmp/bootstrap.ldif.template:ro
+      - openldap-backups:/var/lib/openldap/openldap-backups
+      - ./config/ldap/bootstrap-rendered:/container/service/slapd/assets/config/bootstrap/ldif/custom
     restart: unless-stopped
     networks:
-        - internal_network
+      - internal_network
+
+  openldap-init:
+    image: osixia/openldap:latest
+    container_name: hotspot-openldap-init
+    restart: "no"
+    networks:
+      - internal_network
+    depends_on:
+      - openldap
+    environment:
+      - LDAP_ADMIN_PASSWORD=${SHARED_PASSWORD}
+      - LDAP_ADMIN_DN=cn=admin,dc=gecko,dc=local
+    volumes:
+      - ./config/ldap/bootstrap-rendered:/bootstrap:ro
+      - ./config/ldap/bootstrap-init.sh:/bootstrap-init.sh:ro
+    entrypoint: /bin/sh /bootstrap-init.sh
 
   phpldapadmin:
-    image: osixia/phpldapadmin:0.9.0
+    image: osixia/phpldapadmin:latest
     container_name: hotspot-phpldapadmin
     ports:
       - "8080:80"
@@ -447,10 +507,10 @@ services:
       - PHPLDAPADMIN_LDAP_HOSTS=hotspot-openldap
       - PHPLDAPADMIN_HTTPS=false
     depends_on:
-        - openldap
+      - openldap
     restart: unless-stopped
     networks:
-        - internal_network
+      - internal_network
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -504,8 +564,11 @@ volumes:
   redisdata:
   objectdata:
   minio_data1:
+  content_nginx_cache:
+    driver: local
+  openldap-conf:
   openldap-data:
-  openldap-config:
+  openldap-backups:
 
 networks:
   internal_network:

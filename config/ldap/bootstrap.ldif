@@ -1,8 +1,36 @@
+# ── Hotspot Users OU (RADIUS search base) ───────────────────────────────────
 dn: ou=hotspot-users,dc=gecko,dc=local
 objectClass: organizationalUnit
 ou: hotspot-users
 description: Hotspot portal users
 
+dn: ou=temp,ou=hotspot-users,dc=gecko,dc=local
+objectClass: organizationalUnit
+ou: temp
+description: Auto-provisioned transient users (SMS/TC/Passphrase)
+
+dn: ou=pms,ou=hotspot-users,dc=gecko,dc=local
+objectClass: organizationalUnit
+ou: pms
+description: HMS/PMS hotel guest users
+
+dn: ou=captive,ou=hotspot-users,dc=gecko,dc=local
+objectClass: organizationalUnit
+ou: captive
+description: Admin-created captive portal users
+
+# ── Local Users / Groups ─────────────────────────────────────────────────────
+dn: ou=local-users,dc=gecko,dc=local
+objectClass: organizationalUnit
+ou: local-users
+description: Local user accounts
+
+dn: ou=local-groups,dc=gecko,dc=local
+objectClass: organizationalUnit
+ou: local-groups
+description: Local user groups
+
+# ── Test user (LDAP auth test — ou=hotspot-users) ────────────────────────────
 dn: uid=testuser,ou=hotspot-users,dc=gecko,dc=local
 objectClass: inetOrgPerson
 objectClass: organizationalPerson
