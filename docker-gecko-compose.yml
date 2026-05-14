@@ -57,6 +57,8 @@ services:
         - GATEWAY_HOST=gatewayapi
         - GATEWAY_PORT=5101
         - GATEWAY_API_VERSION=v0
+        - CONTENT_CDN_HOST=content-nginx
+        - CONTENT_CDN_PORT=8090
       networks:
         - internal_network
       ports:
