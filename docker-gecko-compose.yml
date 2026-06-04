@@ -613,6 +613,8 @@ services:
       - CORE_API=http://coreapi:8080
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - DOTNET_gcServer=0
+      - DOTNET_GCConserveMemory=9
     restart: always
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz" ]
@@ -644,6 +646,9 @@ services:
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
       - CORE_API=http://coreapi:8080
+      # Workstation GC + aggressive memory return: much smaller working set on this tight host.
+      - DOTNET_gcServer=0
+      - DOTNET_GCConserveMemory=9
     restart: always
     networks:
       - internal_network
