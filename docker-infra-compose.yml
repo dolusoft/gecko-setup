@@ -461,57 +461,6 @@ services:
           memory: '80M'
 
   # ---------------------------------------------------------------------------
-  # CHROMADB
-  # ---------------------------------------------------------------------------
-  chromadb:
-    image: chromadb/chroma:1.0.9
-    container_name: chromadb
-    hostname: chromadb
-    restart: always
-    networks:
-      - internal_network
-    environment:
-      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:3000"]
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma-data:/chroma/data
-    deploy:
-      resources:
-        limits:
-          cpus: '0.2'
-          memory: '50M'
-        reservations:
-          cpus: '0.1'
-          memory: '30M'
-
-  # ---------------------------------------------------------------------------
-  # CONTENT NGINX
-  # ---------------------------------------------------------------------------
-  content-nginx:
-    container_name: content-nginx
-    hostname: content-nginx
-    image: nginx:1.27-alpine
-    restart: always
-    networks:
-      - internal_network
-    ports:
-      - "9190:8090"
-    volumes:
-      - ./config/content-nginx.conf:/etc/nginx/nginx.conf:ro
-      - content_nginx_cache:/var/cache/nginx/content
-    depends_on:
-      - minio
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: '512M'
-        reservations:
-          cpus: '0.1'
-          memory: '64M'
-
-  # ---------------------------------------------------------------------------
   # NGINX LOAD BALANCER
   # ---------------------------------------------------------------------------
   nginx-lb:
@@ -637,8 +586,6 @@ services:
 # VOLUMES
 # -----------------------------------------------------------------------------
 volumes:
-  chroma-data:
-    driver: local
   kafka-1-data:
     driver: local
   kafka-1-logs:
@@ -660,8 +607,6 @@ volumes:
   redisdata:
   objectdata:
   minio_data1:
-  content_nginx_cache:
-    driver: local
   openldap-conf:
   openldap-data:
   openldap-backups:
