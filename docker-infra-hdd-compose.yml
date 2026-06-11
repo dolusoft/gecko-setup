@@ -1,5 +1,4 @@
 services:
-
   # ---------------------------------------------------------------------------
   # KAFKA CONTROLLER (KRaft) — metadata only, no brokering
   # ---------------------------------------------------------------------------
@@ -25,6 +24,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       CLUSTER_ID: 'KafkaKRaftCluster'
+      # Controller only needs a small heap — it handles metadata, not data
       KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=50"
     volumes:
       - kafka-controller-data:/var/lib/kafka/data
@@ -40,6 +40,7 @@ services:
     hostname: kafka-1
     restart: always
     init: true
+    # 2GB hard limit — the remaining ~1GB per broker goes to OS page cache.
     mem_limit: 2g
     memswap_limit: 2g
     healthcheck:
@@ -47,7 +48,7 @@ services:
       interval: 15s
       timeout: 30s
       retries: 10
-      start_period: 90s
+      start_period: 60s
     networks:
       - internal_network
     ports:
@@ -61,7 +62,7 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@kafka-controller:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://0.0.0.0:19092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://172.16.40.167:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://172.16.40.25:19092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -85,48 +86,40 @@ services:
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
 
       # --- HDD-optimised segment & flush settings ---
-      # Smaller segments than NVMe config — less data to replay on crash,
-      # and HDD seeks are expensive so we want predictable sequential writes.
-      KAFKA_LOG_SEGMENT_BYTES: 536870912          # 512MB (was 1GB) — shorter segments = faster recovery on HDD
-      # Explicit flush cadence — don't let the OS accumulate a huge dirty buffer
-      # that flushes all at once and causes a latency spike on HDD.
-      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 10000    # flush every 10k messages
-      KAFKA_LOG_FLUSH_INTERVAL_MS: 1000           # or every 1s, whichever comes first
+      # Smaller segments + forced periodic flushes suit spinning disks
+      KAFKA_LOG_SEGMENT_BYTES: 268435456
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 50000
+      KAFKA_LOG_FLUSH_INTERVAL_MS: 5000
 
-      # --- HDD-optimised threading ---
-      # HDDs serialise random I/O anyway; more threads help queue and
-      # batch requests rather than waiting idle on a single thread.
-      KAFKA_NUM_IO_THREADS: 8                     # was 4
-      KAFKA_NUM_NETWORK_THREADS: 6                # was 4
-      KAFKA_NUM_REPLICA_FETCHERS: 2
+      # --- HDD-optimised threading: more threads to hide IO latency ---
+      KAFKA_NUM_IO_THREADS: 16
+      KAFKA_NUM_NETWORK_THREADS: 8
 
-      # --- Replication tuning for HDD ---
-      # Relax the lag window — HDD replicas are slower than NVMe.
-      KAFKA_REPLICA_LAG_TIME_MAX_MS: 60000        # was 30000
-      KAFKA_REPLICA_FETCH_MIN_BYTES: 1
+      # --- Replication tuning for HDD: batched fetches, wider lag window ---
+      KAFKA_REPLICA_LAG_TIME_MAX_MS: 120000
+      KAFKA_REPLICA_FETCH_MIN_BYTES: 65536
       KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760
-      KAFKA_REPLICA_FETCH_WAIT_MAX_MS: 500        # was 100 — give HDD time to seek
+      KAFKA_REPLICA_FETCH_WAIT_MAX_MS: 500
 
       # --- Consumer group / rebalance stability ---
       KAFKA_GROUP_MIN_SESSION_TIMEOUT_MS: 6000
       KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 300000
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 5000  # was 3000 — HDD starts slower
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 3000
 
       # --- Producer / broker request timeouts ---
-      # Generous timeouts — HDD under load will be slower to respond.
-      KAFKA_REQUEST_TIMEOUT_MS: 120000            # was 60000
-      KAFKA_METADATA_REQUEST_TIMEOUT_MS: 120000   # was 60000
-      KAFKA_BROKER_SESSION_TIMEOUT_MS: 180000     # was 120000
-      KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 120000 # was 60000
-      KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS: 120000 # was 60000
+      KAFKA_REQUEST_TIMEOUT_MS: 60000
+      KAFKA_METADATA_REQUEST_TIMEOUT_MS: 60000
+      KAFKA_BROKER_SESSION_TIMEOUT_MS: 120000
+      KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 60000
+      KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS: 60000
 
       # --- Socket buffers ---
       KAFKA_SOCKET_SEND_BUFFER_BYTES: 1048576
       KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 1048576
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
 
-      # --- Heap: keep at 1GB — page cache matters less on HDD than NVMe ---
-      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
+      # --- Heap: 1GB max — leave the rest for OS page cache ---
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
 
     volumes:
       - kafka-1-data:/var/lib/kafka/data
@@ -149,7 +142,7 @@ services:
       interval: 15s
       timeout: 30s
       retries: 10
-      start_period: 90s
+      start_period: 60s
     networks:
       - internal_network
     ports:
@@ -163,7 +156,7 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@kafka-controller:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://172.16.40.167:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://172.16.40.25:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -179,28 +172,27 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 24
       KAFKA_LOG_RETENTION_BYTES: 16106127360
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
-      KAFKA_LOG_SEGMENT_BYTES: 536870912
-      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 10000
-      KAFKA_LOG_FLUSH_INTERVAL_MS: 1000
-      KAFKA_NUM_IO_THREADS: 8
-      KAFKA_NUM_NETWORK_THREADS: 6
-      KAFKA_NUM_REPLICA_FETCHERS: 2
-      KAFKA_REPLICA_LAG_TIME_MAX_MS: 60000
-      KAFKA_REPLICA_FETCH_MIN_BYTES: 1
+      KAFKA_LOG_SEGMENT_BYTES: 268435456
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 50000
+      KAFKA_LOG_FLUSH_INTERVAL_MS: 5000
+      KAFKA_NUM_IO_THREADS: 16
+      KAFKA_NUM_NETWORK_THREADS: 8
+      KAFKA_REPLICA_LAG_TIME_MAX_MS: 120000
+      KAFKA_REPLICA_FETCH_MIN_BYTES: 65536
       KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760
       KAFKA_REPLICA_FETCH_WAIT_MAX_MS: 500
       KAFKA_GROUP_MIN_SESSION_TIMEOUT_MS: 6000
       KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 300000
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 5000
-      KAFKA_REQUEST_TIMEOUT_MS: 120000
-      KAFKA_METADATA_REQUEST_TIMEOUT_MS: 120000
-      KAFKA_BROKER_SESSION_TIMEOUT_MS: 180000
-      KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 120000
-      KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS: 120000
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 3000
+      KAFKA_REQUEST_TIMEOUT_MS: 60000
+      KAFKA_METADATA_REQUEST_TIMEOUT_MS: 60000
+      KAFKA_BROKER_SESSION_TIMEOUT_MS: 120000
+      KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 60000
+      KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS: 60000
       KAFKA_SOCKET_SEND_BUFFER_BYTES: 1048576
       KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 1048576
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
-      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
     volumes:
       - kafka-2-data:/var/lib/kafka/data
       - kafka-2-logs:/opt/kafka/logs
@@ -222,7 +214,7 @@ services:
       interval: 15s
       timeout: 30s
       retries: 10
-      start_period: 90s
+      start_period: 60s
     networks:
       - internal_network
     ports:
@@ -236,7 +228,7 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: '3@kafka-controller:39093'
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://0.0.0.0:39092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://172.16.40.167:39092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://172.16.40.25:39092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /var/lib/kafka/data
@@ -252,28 +244,27 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 24
       KAFKA_LOG_RETENTION_BYTES: 16106127360
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
-      KAFKA_LOG_SEGMENT_BYTES: 536870912
-      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 10000
-      KAFKA_LOG_FLUSH_INTERVAL_MS: 1000
-      KAFKA_NUM_IO_THREADS: 8
-      KAFKA_NUM_NETWORK_THREADS: 6
-      KAFKA_NUM_REPLICA_FETCHERS: 2
-      KAFKA_REPLICA_LAG_TIME_MAX_MS: 60000
-      KAFKA_REPLICA_FETCH_MIN_BYTES: 1
+      KAFKA_LOG_SEGMENT_BYTES: 268435456
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 50000
+      KAFKA_LOG_FLUSH_INTERVAL_MS: 5000
+      KAFKA_NUM_IO_THREADS: 16
+      KAFKA_NUM_NETWORK_THREADS: 8
+      KAFKA_REPLICA_LAG_TIME_MAX_MS: 120000
+      KAFKA_REPLICA_FETCH_MIN_BYTES: 65536
       KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760
       KAFKA_REPLICA_FETCH_WAIT_MAX_MS: 500
       KAFKA_GROUP_MIN_SESSION_TIMEOUT_MS: 6000
       KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 300000
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 5000
-      KAFKA_REQUEST_TIMEOUT_MS: 120000
-      KAFKA_METADATA_REQUEST_TIMEOUT_MS: 120000
-      KAFKA_BROKER_SESSION_TIMEOUT_MS: 180000
-      KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 120000
-      KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS: 120000
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 3000
+      KAFKA_REQUEST_TIMEOUT_MS: 60000
+      KAFKA_METADATA_REQUEST_TIMEOUT_MS: 60000
+      KAFKA_BROKER_SESSION_TIMEOUT_MS: 120000
+      KAFKA_BROKER_REGISTRATION_TIMEOUT_MS: 60000
+      KAFKA_CONTROLLER_QUORUM_REQUEST_TIMEOUT_MS: 60000
       KAFKA_SOCKET_SEND_BUFFER_BYTES: 1048576
       KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 1048576
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
-      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
     volumes:
       - kafka-3-data:/var/lib/kafka/data
       - kafka-3-logs:/opt/kafka/logs
@@ -281,20 +272,9 @@ services:
 
   # ---------------------------------------------------------------------------
   # CLICKHOUSE
-  # HDD notes:
-  #   - Memory capped at 4GB — without a limit CH will grab all free RAM and
-  #     trigger the OOM killer, stalling every other service on the host.
-  #   - mark_cache_size reduced to 512MB (default 5GB) — on HDD the mark cache
-  #     fits comfortably in RAM and prevents CH from thrashing the disk for
-  #     index lookups.
-  #   - max_threads = 4 — limits concurrent merge/query workers so CH doesn't
-  #     queue up dozens of random seeks simultaneously on the HDD.
-  #   - background_pool_size = 4 / background_merges = 2 — slows down the
-  #     MergeTree background merge scheduler; aggressive merging on HDD causes
-  #     sustained 100% disk utilisation that blocks all other I/O.
   # ---------------------------------------------------------------------------
   clickhouse:
-    image: clickhouse/clickhouse-server:25.4
+    image: clickhouse:25.11
     user: "101:101"
     container_name: clickhouse
     restart: always
@@ -303,16 +283,14 @@ services:
     hostname: clickhouse
     volumes:
       - ./config/users.xml:/etc/clickhouse-server/users.d/users.xml
-      - ./config/log-retention.xml:/etc/clickhouse-server/config.d/log-retention.xml
-      - ./config/clickhouse-config.xml:/etc/clickhouse-server/config.d/clickhouse-config.xml
-      - ./config/max_suspicious_broken_parts.xml:/etc/clickhouse-server/config.d/max_suspicious_broken_parts.xml
+      - ./config/log-retention.xml:/etc/clickhouse-server/users.d/log-retention.xml
       - clickhouse-data:/var/lib/clickhouse
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 30s
     environment:
       - CLICKHOUSE_USER=default
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
@@ -329,23 +307,9 @@ services:
       memlock:
         soft: -1
         hard: -1
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: '4G'       # was unlimited — this is the single biggest fix
-        reservations:
-          cpus: '0.5'
-          memory: '1G'
 
   # ---------------------------------------------------------------------------
   # MONGODB
-  # HDD notes:
-  #   - wiredTigerCacheSizeGB=0.5 — explicit cache cap; without this WiredTiger
-  #     defaults to (RAM-1GB)/2 which on a loaded host means it fights with
-  #     ClickHouse and Kafka for the same pool of free memory.
-  #   - Memory limit raised to 1GB — 200MB caused constant cache eviction and
-  #     disk thrashing for every query.
   # ---------------------------------------------------------------------------
   mongodb:
     image: mongo:7.0.14
@@ -361,19 +325,15 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD}
     volumes:
       - objectdata:/data/db
-    command: >
-      mongod
-      --wiredTigerCollectionBlockCompressor=zstd
-      --wiredTigerJournalCompressor=zstd
-      --wiredTigerCacheSizeGB=0.5
+    command: mongod --wiredTigerCollectionBlockCompressor=zstd --wiredTigerJournalCompressor=zstd
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: '1G'       # was 200M — starvation level for WiredTiger
+          cpus: '0.6'
+          memory: '200M'
         reservations:
           cpus: '0.3'
-          memory: '512M'
+          memory: '100M'
 
   # ---------------------------------------------------------------------------
   # REDIS
@@ -489,6 +449,31 @@ services:
         reservations:
           cpus: '0.1'
           memory: '80M'
+
+  # ---------------------------------------------------------------------------
+  # CHROMADB
+  # ---------------------------------------------------------------------------
+  chromadb:
+    image: chromadb/chroma:1.0.9
+    container_name: chromadb
+    hostname: chromadb
+    restart: always
+    networks:
+      - internal_network
+    environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:3000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: '50M'
+        reservations:
+          cpus: '0.1'
+          memory: '30M'
 
   # ---------------------------------------------------------------------------
   # NGINX LOAD BALANCER
@@ -613,99 +598,35 @@ services:
           memory: '256M'
 
 # -----------------------------------------------------------------------------
-# VOLUMES — all bound to /mnt/data
+# VOLUMES
 # -----------------------------------------------------------------------------
 volumes:
+  chroma-data:
+    driver: local
   kafka-1-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-1-data
   kafka-1-logs:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-1-logs
   kafka-2-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-2-data
   kafka-2-logs:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-2-logs
   kafka-3-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-3-data
   kafka-3-logs:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-3-logs
   kafka-controller-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-controller-data
   kafka-controller-logs:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/kafka-controller-logs
   clickhouse-data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/clickhouse-data
   redisdata:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/redisdata
   objectdata:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/objectdata
   minio_data1:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/minio_data1
   openldap-conf:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/openldap-config
   openldap-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/openldap-data
   openldap-backups:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/data/openldap-backups
 
 # -----------------------------------------------------------------------------
 # NETWORKS
