@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- =========================================================
+         CONNECTION / CONCURRENCY
+         Kept from original — these are fine for HDD.
+         max_thread_pool_size is OS threads, not disk workers;
+         the disk pressure comes from background_pool_size below.
+    ========================================================= -->
+    <max_concurrent_queries>100</max_concurrent_queries>
+    <max_thread_pool_size>10000</max_thread_pool_size>
+    <max_connections>2048</max_connections>
+    <keep_alive_timeout>10</keep_alive_timeout>
+
+    <!-- =========================================================
+         MEMORY CAP
+         Original: 11GB (fine on NVMe where RAM pressure doesn't
+         cause disk thrashing). On HDD, CH going to 11GB means the
+         kernel starts flushing dirty pages to the HDD to reclaim
+         RAM for CH — which blocks all other I/O.
+         Capped at 6GB: enough for CH to work well, leaves headroom
+         for Kafka JVM (3×1GB), MongoDB (512MB), and OS page cache.
+    ========================================================= -->
+    <max_server_memory_usage>6442450944</max_server_memory_usage> <!-- 6GB, was 11GB -->
+    <max_server_memory_usage_to_ram_ratio>0.4</max_server_memory_usage_to_ram_ratio>
+
+    <!-- =========================================================
+         CACHES
+         Original uncompressed_cache: 8GB  — wastes RAM on HDD;
+         the OS page cache does decompression caching better.
+         Original mark_cache: 5GB — excessive; 512MB is plenty.
+         query_cache and compiled_expression_cache kept as-is.
+    ========================================================= -->
+    <uncompressed_cache_size>0</uncompressed_cache_size>          <!-- was 8GB — disabled, let OS page cache do this -->
+    <mark_cache_size>536870912</mark_cache_size>                   <!-- 512MB, was 5GB -->
+    <compiled_expression_cache_size>1073741824</compiled_expression_cache_size> <!-- 1GB, kept -->
+
+    <query_cache>
+        <max_size_in_bytes>2147483648</max_size_in_bytes>          <!-- 2GB, kept -->
+        <max_entries>1024</max_entries>
+        <max_entry_size_in_bytes>104857600</max_entry_size_in_bytes>
+        <max_entry_size_in_rows>30000000</max_entry_size_in_rows>
+    </query_cache>
+
+    <!-- =========================================================
+         BACKGROUND POOL SIZES
+         Original: pool=32, schedule=512 — tuned for NVMe which
+         can service many parallel random I/Os. On HDD, 32 merge
+         workers means 32 competing seeks; the disk serialises them
+         anyway and the overhead stalls foreground queries.
+
+         background_pool_size=4: only 4 concurrent merge workers.
+         This is the single most impactful HDD setting — it stops
+         CH from pinning the disk at 100% during background merges.
+
+         schedule pools reduced proportionally; they don't hit disk
+         directly but consume CPU that competes with I/O threads.
+    ========================================================= -->
+    <background_pool_size>4</background_pool_size>                 <!-- was 32 — KEY HDD FIX -->
+    <background_schedule_pool_size>64</background_schedule_pool_size> <!-- was 512 -->
+    <background_move_pool_size>2</background_move_pool_size>       <!-- was 8 -->
+    <background_fetches_pool_size>2</background_fetches_pool_size> <!-- was 8 -->
+    <background_common_pool_size>4</background_common_pool_size>   <!-- was 8, kept reasonable -->
+    <background_buffer_flush_schedule_pool_size>4</background_buffer_flush_schedule_pool_size>  <!-- was 16 -->
+    <background_distributed_schedule_pool_size>4</background_distributed_schedule_pool_size>    <!-- was 16 -->
+    <background_message_broker_schedule_pool_size>8</background_message_broker_schedule_pool_size> <!-- was 16, Kafka consumer needs some headroom -->
+    <background_merges_mutations_concurrency_ratio>2</background_merges_mutations_concurrency_ratio>
+
+    <!-- =========================================================
+         COMPRESSION
+         Kept exactly from original — zstd levels 3/6 are good
+         choices that reduce the data volume hitting the HDD.
+    ========================================================= -->
+    <compression>
+        <case>
+            <method>zstd</method>
+            <level>3</level>
+            <min_part_size>10485760</min_part_size>
+            <min_part_size_ratio>0.01</min_part_size_ratio>
+        </case>
+        <case>
+            <min_part_size>1073741824</min_part_size>
+            <method>zstd</method>
+            <level>6</level>
+        </case>
+    </compression>
+
+    <!-- =========================================================
+         MERGE TREE
+         Most settings kept from original. Changes:
+         - merge_selecting_sleep_ms: raised 5000→10000 — halves
+           how often CH wakes up to look for merge candidates,
+           reducing metadata I/O on HDD when the system is idle.
+         - max_part_loading_threads / max_part_removal_threads:
+           lowered 8→4 — startup part scanning is sequential on
+           HDD anyway; fewer threads = fewer competing seeks during
+           the startup phase that was causing the 20-min boot.
+         - parts_to_delay/throw kept from original (1000/3000) —
+           your original was already generous here.
+    ========================================================= -->
+    <merge_tree>
+        <max_bytes_to_merge_at_max_space_in_pool>161061273600</max_bytes_to_merge_at_max_space_in_pool>
+        <parts_to_throw_insert>3000</parts_to_throw_insert>
+        <parts_to_delay_insert>1000</parts_to_delay_insert>
+
+        <max_part_loading_threads>4</max_part_loading_threads>
+        <max_part_removal_threads>4</max_part_removal_threads>
+        <concurrent_part_removal_threshold>100</concurrent_part_removal_threshold>
+        <cleanup_delay_period>30</cleanup_delay_period>
+        <cleanup_delay_period_random_add>10</cleanup_delay_period_random_add>
+
+        <merge_selecting_sleep_ms>10000</merge_selecting_sleep_ms>
+        <max_parts_in_total>100000</max_parts_in_total>
+        <min_age_to_force_merge_seconds>0</min_age_to_force_merge_seconds>
+        <min_bytes_for_wide_part>10485760</min_bytes_for_wide_part>
+        <min_rows_for_wide_part>100000</min_rows_for_wide_part>
+        <ttl_only_drop_parts>1</ttl_only_drop_parts>
+        <merge_max_block_size>8192</merge_max_block_size>
+        <!-- max_suspicious_broken_parts is set in config/max_suspicious_broken_parts.xml (1000) -->
+
+        <!--
+            CH 25.4 sanity check: these three values must all be
+            strictly less than background_pool_size * concurrency_ratio.
+            Our values: 4 * 2 = 8, so all three must be <= 7.
+        -->
+        <number_of_free_entries_in_pool_to_execute_mutation>4</number_of_free_entries_in_pool_to_execute_mutation>
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>4</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>4</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+    </merge_tree>
+
+    <!-- =========================================================
+         DROP PROTECTION — kept from original
+    ========================================================= -->
+    <max_table_size_to_drop>0</max_table_size_to_drop>
+    <max_partition_size_to_drop>0</max_partition_size_to_drop>
+
+    <!-- =========================================================
+         TIMEZONE — kept from original
+    ========================================================= -->
+    <timezone>UTC</timezone>
+
+    <!-- =========================================================
+         SYSTEM LOGS
+         Intentionally NOT defined here. All system log tables
+         (query_log, text_log, trace_log, part_log, metric_log,
+         processors_profile_log) are governed solely by
+         config/log-retention.xml (mounted into users.d/).
+         Do not add system *_log definitions here — they would
+         contradict log-retention.xml.
+    ========================================================= -->
+
+    <!-- =========================================================
+         ASYNC INSERT NOTE
+         async_insert_* are user-level settings in CH 25.x — they
+         belong in users.xml under <profiles><default>, not here.
+         Adding them here causes the server to crash on startup.
+         See users.xml to enable async inserts if needed.
+    ========================================================= -->
+
+</clickhouse>
