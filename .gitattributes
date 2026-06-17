@@ -1,0 +1,11 @@
+# Enforce LF line endings for shell scripts and config so they run on Linux
+# regardless of the OS they were edited on.
+*.sh            text eol=lf
+*.ldif          text eol=lf
+*.conf          text eol=lf
+config/radius/sites-enabled/*  text eol=lf
+config/radius/mods-enabled/*   text eol=lf
+
+# Entrypoints / scripts without an extension
+config/ldap/entrypoint.sh      text eol=lf
+config/radius/entrypoint.sh    text eol=lf

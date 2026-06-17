@@ -28,7 +28,6 @@ services:
       KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=50"
     volumes:
       - kafka-controller-data:/var/lib/kafka/data
-      - kafka-controller-logs:/opt/kafka/logs
     stop_grace_period: 1m
 
   # ---------------------------------------------------------------------------
@@ -131,7 +130,6 @@ services:
 
     volumes:
       - kafka-1-data:/var/lib/kafka/data
-      - kafka-1-logs:/opt/kafka/logs
     stop_grace_period: 2m
 
   # ---------------------------------------------------------------------------
@@ -204,7 +202,6 @@ services:
       KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
     volumes:
       - kafka-2-data:/var/lib/kafka/data
-      - kafka-2-logs:/opt/kafka/logs
     stop_grace_period: 2m
 
   # ---------------------------------------------------------------------------
@@ -277,7 +274,6 @@ services:
       KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=16m -XX:InitiatingHeapOccupancyPercent=35"
     volumes:
       - kafka-3-data:/var/lib/kafka/data
-      - kafka-3-logs:/opt/kafka/logs
     stop_grace_period: 2m
 
   # ---------------------------------------------------------------------------
@@ -588,19 +584,11 @@ services:
 volumes:
   kafka-1-data:
     driver: local
-  kafka-1-logs:
-    driver: local
   kafka-2-data:
-    driver: local
-  kafka-2-logs:
     driver: local
   kafka-3-data:
     driver: local
-  kafka-3-logs:
-    driver: local
   kafka-controller-data:
-    driver: local
-  kafka-controller-logs:
     driver: local
   clickhouse-data:
     driver: local
