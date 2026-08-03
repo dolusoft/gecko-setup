@@ -483,6 +483,33 @@ services:
           memory: '32M'
 
   # ---------------------------------------------------------------------------
+  # CONTENT CDN / DOWNLOAD PROXY
+  # Serves config/content-nginx.conf. authentication-ui substitutes
+  # CONTENT_CDN_HOST/CONTENT_CDN_PORT into its own nginx config and GatewayApi
+  # routes content-nginx-cluster here, so both fail without this service.
+  # ---------------------------------------------------------------------------
+  content-nginx:
+    container_name: content-nginx
+    hostname: content-nginx
+    image: nginx:1.25-alpine
+    restart: always
+    volumes:
+      - ./config/content-nginx.conf:/etc/nginx/nginx.conf:ro
+      - content-cache:/var/cache/nginx/content
+    depends_on:
+      - minio
+    networks:
+      - internal_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '128M'
+        reservations:
+          cpus: '0.1'
+          memory: '32M'
+
+  # ---------------------------------------------------------------------------
   # FREERADIUS
   # ---------------------------------------------------------------------------
   freeradius:
@@ -592,6 +619,7 @@ volumes:
     driver: local
   clickhouse-data:
     driver: local
+  content-cache:
   redisdata:
   objectdata:
   minio_data1:
