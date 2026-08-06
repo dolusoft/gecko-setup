@@ -467,7 +467,9 @@ services:
   nginx-lb:
     container_name: nginx-lb
     hostname: nginx-lb
-    image: nginx:1.25-alpine
+    # 1.28: the upstream "resolve" parameter used in config/nginx.conf became
+    # available in open-source nginx in 1.27.3 (previously NGINX Plus only).
+    image: nginx:1.28-alpine
     restart: always
     cap_add:
       - NET_ADMIN
