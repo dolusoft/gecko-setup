@@ -48,7 +48,7 @@ services:
       interval: 15s
       timeout: 30s
       retries: 10
-      start_period: 60s
+      start_period: 300s
     networks:
       - internal_network
     ports:
@@ -94,6 +94,9 @@ services:
       # --- HDD-optimised threading: more threads to hide IO latency ---
       KAFKA_NUM_IO_THREADS: 16
       KAFKA_NUM_NETWORK_THREADS: 8
+      # Log recovery after an unclean shutdown is single-threaded by default,
+      # which serialises every partition replay. 8 threads parallelises it.
+      KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR: 8
 
       # --- Replication tuning for HDD: batched fetches, wider lag window ---
       KAFKA_REPLICA_LAG_TIME_MAX_MS: 120000
@@ -142,7 +145,7 @@ services:
       interval: 15s
       timeout: 30s
       retries: 10
-      start_period: 60s
+      start_period: 300s
     networks:
       - internal_network
     ports:
@@ -177,6 +180,7 @@ services:
       KAFKA_LOG_FLUSH_INTERVAL_MS: 5000
       KAFKA_NUM_IO_THREADS: 16
       KAFKA_NUM_NETWORK_THREADS: 8
+      KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR: 8
       KAFKA_REPLICA_LAG_TIME_MAX_MS: 120000
       KAFKA_REPLICA_FETCH_MIN_BYTES: 65536
       KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760
@@ -214,7 +218,7 @@ services:
       interval: 15s
       timeout: 30s
       retries: 10
-      start_period: 60s
+      start_period: 300s
     networks:
       - internal_network
     ports:
@@ -249,6 +253,7 @@ services:
       KAFKA_LOG_FLUSH_INTERVAL_MS: 5000
       KAFKA_NUM_IO_THREADS: 16
       KAFKA_NUM_NETWORK_THREADS: 8
+      KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR: 8
       KAFKA_REPLICA_LAG_TIME_MAX_MS: 120000
       KAFKA_REPLICA_FETCH_MIN_BYTES: 65536
       KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760
