@@ -586,8 +586,12 @@ services:
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
       - REDIS_PASSWORD=${SERVICE_PASSWORD}
-      - APP_REDIS_ADDRESS=redis:6380
-      - APP_KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092
+      # alert-notifier reads these unprefixed, unlike correlation-engine's APP_*
+      # names. With the APP_ prefix both were ignored and the image's baked
+      # config.yaml won: redis:6380 (host port, closed inside the network) and
+      # kafka-1:19092 (external listeners, hairpinning via the host).
+      - REDIS_ADDRESS=redis:6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092
       - OTEL_COLLECTOR_ENDPOINT=${OTEL_ENDPOINT:-otel-collector:4317}
     restart: always
     networks:
