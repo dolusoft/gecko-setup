@@ -480,6 +480,13 @@ services:
       - internal_network
     ports:
       - 514:514/udp
+    # Belt and braces for #450: even if an access_log is re-enabled on the
+    # syslog path, the container log cannot grow past 30 MB.
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     deploy:
       resources:
         limits:

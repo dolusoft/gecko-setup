@@ -37,7 +37,7 @@ listener-1   listener-2
 ```nginx
 user nginx;
 worker_processes auto;
-error_log /var/log/nginx/error.log warn;
+error_log /dev/stderr warn;
 pid /var/run/nginx.pid;
 
 events {
@@ -45,8 +45,9 @@ events {
 }
 
 stream {
-    log_format udp_stream '$remote_addr [$time_local] $protocol $status $bytes_sent $bytes_received';
-    access_log /var/log/nginx/udp_access.log udp_stream;
+    # No per-packet access log: one line per datagram grew ~2 GB/day with no
+    # rotation and no diagnostic value (see gecko-project-backend#450).
+    access_log off;
 
     # Upstream for port 514
     upstream listener_514 {
@@ -615,8 +616,8 @@ docker stats listener-1 listener-2 --no-stream
 docker logs listener-1 | grep "received_msg_count" | tail -5
 docker logs listener-2 | grep "received_msg_count" | tail -5
 
-# Nginx access logs
-docker exec nginx-lb tail -f /var/log/nginx/udp_access.log
+# Nginx errors / upstream problems (there is no per-packet access log by design)
+docker logs -f nginx-lb
 ```
 
 ### Health Monitoring
