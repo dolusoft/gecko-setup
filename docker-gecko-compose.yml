@@ -502,6 +502,9 @@ services:
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
       - CORE_API=http://coreapi:8080
+    volumes:
+      - signexporter-data:/app/data
+    stop_grace_period: 30s
     restart: always
     networks:
       - internal_network
@@ -688,6 +691,10 @@ services:
         reservations:
           cpus: '0.1'
           memory: '40M'
+
+volumes:
+  signexporter-data:
+    driver: local
 
 networks:
   internal_network:
