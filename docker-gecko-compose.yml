@@ -492,6 +492,13 @@ services:
           memory: '100M'
 
   signexporter:
+    # Single instance only. signexporter-data below is a durable local queue of signed,
+    # timestamped archives, not a shared cache: a second instance on the same volume deletes
+    # the first one's in-flight files at startup, quarantines its half-finished promotions,
+    # and uploads the same archive twice. The failure is silent - healthy service, no logs,
+    # evidence gone. container_name is what blocks --scale today; scaling out needs one
+    # volume per instance, not a bigger replica count.
+    # See dolusoft/gecko-project-backend#452 (StoragePaths remarks) and #421.
     container_name: signexporter
     hostname: signexporter
     image: ${LOCAL_REGISTRY}/dolusoftcomp/signexporter:rc
