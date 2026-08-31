@@ -29,10 +29,13 @@ processors:
     log_statements:
     - context: log
       # Agent-shipped logs (Fluent Bit `tail`) cannot write resource attributes, so they
-      # carry them inside the body instead. Records that already have a resource
-      # service.name came from a native OTLP SDK and are left completely alone.
+      # carry them inside the body instead. `telemetry.sdk.name` is what tells the two
+      # apart: every OTLP SDK sets it, no log shipper does. Do not discriminate on
+      # service.name -- one request carries many records under a shared resource, so the
+      # first record's set() would make the rest of its own batch fail the condition and
+      # keep dirty bodies with no severity.
       conditions:
-      - IsMap(log.body) and resource.attributes["service.name"] == nil and log.body["service.name"] != nil
+      - IsMap(log.body) and resource.attributes["telemetry.sdk.name"] == nil and log.body["service.name"] != nil
       statements:
       - set(resource.attributes["service.name"], log.body["service.name"])
       - set(resource.attributes["service.version"], log.body["service.version"]) where log.body["service.version"] != nil
