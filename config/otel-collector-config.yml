@@ -25,13 +25,36 @@ connectors:
       pipelines: [ logs/log, logs/kafka-log ]
 processors:
   transform/extract-resource:
+    error_mode: ignore
     log_statements:
     - context: log
+      # Agent-shipped logs (Fluent Bit `tail`) cannot write resource attributes, so they
+      # carry them inside the body instead. `telemetry.sdk.name` is what tells the two
+      # apart: every OTLP SDK sets it, no log shipper does. Do not discriminate on
+      # service.name -- one request carries many records under a shared resource, so the
+      # first record's set() would make the rest of its own batch fail the condition and
+      # keep dirty bodies with no severity.
+      conditions:
+      - IsMap(log.body) and resource.attributes["telemetry.sdk.name"] == nil and log.body["service.name"] != nil
       statements:
-      - set(resource.attributes["service.name"], body["service.name"]) where IsMap(body) and resource.attributes["service.name"] == nil and body["service.name"] != nil
-      - set(resource.attributes["log.type"], body["log.type"]) where IsMap(body) and resource.attributes["log.type"] == nil and body["log.type"] != nil
-      - delete_key(body, "service.name") where IsMap(body) and body["service.name"] != nil
-      - delete_key(body, "log.type") where IsMap(body) and body["log.type"] != nil
+      - set(resource.attributes["service.name"], log.body["service.name"])
+      - set(resource.attributes["service.version"], log.body["service.version"]) where log.body["service.version"] != nil
+      - set(resource.attributes["log.type"], log.body["log.type"]) where log.body["log.type"] != nil
+      # Keep an unrecognised level verbatim rather than losing it, then fold the three
+      # levels we know onto the vocabulary the SDKs emit — SeverityText is filtered by
+      # exact string (CoreApi FeedbackConfig.AllowedLevels = "Warning,Error"), so "WARN"
+      # would make a frontend error invisible to it.
+      - set(log.severity_text, log.body["severity_text"]) where log.body["severity_text"] != nil
+      - set(log.severity_text, "Information") where log.body["severity_text"] == "INFO"
+      - set(log.severity_number, SEVERITY_NUMBER_INFO) where log.body["severity_text"] == "INFO"
+      - set(log.severity_text, "Warning") where log.body["severity_text"] == "WARN"
+      - set(log.severity_number, SEVERITY_NUMBER_WARN) where log.body["severity_text"] == "WARN"
+      - set(log.severity_text, "Error") where log.body["severity_text"] == "ERROR"
+      - set(log.severity_number, SEVERITY_NUMBER_ERROR) where log.body["severity_text"] == "ERROR"
+      - delete_key(log.body, "service.name")
+      - delete_key(log.body, "service.version")
+      - delete_key(log.body, "log.type")
+      - delete_key(log.body, "severity_text")
   batch:
     send_batch_size: 10000
     timeout: 1s
@@ -96,11 +119,8 @@ service:
   extensions: [ pprof, zpages, health_check ]
   pipelines:
     logs/in:
-      receivers: [ fluentforward ]
+      receivers: [ otlp, fluentforward ]
       processors: [ transform/extract-resource ]
-      exporters: [ routing ]
-    logs/in-otlp:
-      receivers: [ otlp ]
       exporters: [ routing ]
     logs/audit:
       receivers: [ routing ]
