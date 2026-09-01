@@ -58,6 +58,20 @@ processors:
   batch:
     send_batch_size: 10000
     timeout: 1s
+  # The kafka exporter refuses any message over Producer.MaxMessageBytes (default
+  # 1_000_000) as a permanent error, so oversized batches are dropped, not retried --
+  # the broker's own ceiling is 1_048_588, so raising one without the other buys nothing.
+  # send_batch_max_size is the only setting that splits a batch; send_batch_size is just
+  # a flush trigger and does not bound the message. timeout: 0s keeps the current
+  # behaviour of these pipelines -- they forward immediately and never group -- so the
+  # only thing added here is the split.
+  # 256: the heaviest record profile measured on the wire is ~3.5 KB/record in otlp_json,
+  # giving ~890 KB worst case. Re-derive from 1_000_000 / max-bytes-per-record if either
+  # the limit or the record shape changes.
+  batch/kafka:
+    send_batch_size: 256
+    send_batch_max_size: 256
+    timeout: 0s
   memory_limiter:
     check_interval: 2s
     limit_mib: 1800
@@ -136,11 +150,11 @@ service:
       exporters: [ clickhouse/default ]
     logs/kafka-log:
       receivers: [ routing ]
-      processors: [ memory_limiter ]
+      processors: [ memory_limiter, batch/kafka ]
       exporters: [ kafka/logs ]
     logs/kafka-audit:
       receivers: [ routing ]
-      processors: [ memory_limiter ]
+      processors: [ memory_limiter, batch/kafka ]
       exporters: [ kafka/audits ]
     traces:
       receivers: [ otlp ]
