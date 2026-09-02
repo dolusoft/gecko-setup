@@ -12,6 +12,21 @@
         <flush_on_crash>false</flush_on_crash>
     </query_log>
 
+    <!-- Query thread log: one row per thread per query, so it outgrows
+         query_log by roughly an order of magnitude. log_query_threads is
+         enabled in users.xml, so this table needs a TTL of its own. -->
+    <query_thread_log replace="true">
+        <database>system</database>
+        <table>query_thread_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 1 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <max_size_rows>1048576</max_size_rows>
+        <reserved_size_rows>8192</reserved_size_rows>
+        <buffer_size_rows_flush_threshold>524288</buffer_size_rows_flush_threshold>
+        <flush_on_crash>false</flush_on_crash>
+    </query_thread_log>
+
     <!-- Text log -->
     <text_log replace="true">
         <database>system</database>

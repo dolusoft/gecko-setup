@@ -143,7 +143,7 @@
          Intentionally NOT defined here. All system log tables
          (query_log, text_log, trace_log, part_log, metric_log,
          processors_profile_log) are governed solely by
-         config/log-retention.xml (mounted into users.d/).
+         config/log-retention.xml (mounted into config.d/).
          Do not add system *_log definitions here — they would
          contradict log-retention.xml.
     ========================================================= -->

@@ -294,7 +294,7 @@ services:
     hostname: clickhouse
     volumes:
       - ./config/users.xml:/etc/clickhouse-server/users.d/users.xml
-      - ./config/log-retention.xml:/etc/clickhouse-server/users.d/log-retention.xml
+      - ./config/log-retention.xml:/etc/clickhouse-server/config.d/log-retention.xml
       - clickhouse-data:/var/lib/clickhouse
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
