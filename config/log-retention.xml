@@ -103,4 +103,48 @@
         <buffer_size_rows_flush_threshold>524288</buffer_size_rows_flush_threshold>
         <flush_on_crash>false</flush_on_crash>
     </processors_profile_log>
+
+    <!-- Asynchronous metric log: one row per metric per collection tick, so it is
+         row-heavy but highly compressible (643 million rows in 0.52 GiB on .21,
+         which is why a size-ranked view never surfaced it). flush_interval stays
+         at ClickHouse's own 7000 for this table, not the 7500 used above. -->
+    <asynchronous_metric_log replace="true">
+        <database>system</database>
+        <table>asynchronous_metric_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 1 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7000</flush_interval_milliseconds>
+        <max_size_rows>1048576</max_size_rows>
+        <reserved_size_rows>8192</reserved_size_rows>
+        <buffer_size_rows_flush_threshold>524288</buffer_size_rows_flush_threshold>
+        <flush_on_crash>false</flush_on_crash>
+    </asynchronous_metric_log>
+
+    <!-- Query views log -->
+    <query_views_log replace="true">
+        <database>system</database>
+        <table>query_views_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 1 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <max_size_rows>1048576</max_size_rows>
+        <reserved_size_rows>8192</reserved_size_rows>
+        <buffer_size_rows_flush_threshold>524288</buffer_size_rows_flush_threshold>
+        <flush_on_crash>false</flush_on_crash>
+    </query_views_log>
+
+    <!-- Error log: collect_interval_milliseconds is kept because replace="true"
+         drops any sub-setting left out, and this table has one the others do not. -->
+    <error_log replace="true">
+        <database>system</database>
+        <table>error_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 1 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        <max_size_rows>1048576</max_size_rows>
+        <reserved_size_rows>8192</reserved_size_rows>
+        <buffer_size_rows_flush_threshold>524288</buffer_size_rows_flush_threshold>
+        <collect_interval_milliseconds>1000</collect_interval_milliseconds>
+        <flush_on_crash>false</flush_on_crash>
+    </error_log>
 </clickhouse>
