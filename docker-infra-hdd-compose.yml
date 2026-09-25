@@ -497,11 +497,16 @@ services:
       - internal_network
     ports:
       - 514:514/udp
+    # 256M: UDP receive buffers are charged here (2 sockets x 16 MB, see
+    # config/nginx.conf). At 64M full buffers would hit the limit and the
+    # fix would drop packets in a new place. cpus 1.0 is headroom only -- CPU
+    # was never the bottleneck (nr_throttled 18 of 12M periods).
+    # See dolusoft/gecko-setup#7.
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '64M'
+          cpus: '1.0'
+          memory: '256M'
         reservations:
           cpus: '0.1'
           memory: '32M'
