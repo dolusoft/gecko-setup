@@ -358,8 +358,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
-          memory: '200M'
+          cpus: '1.0'
+          memory: '512M'
         reservations:
           cpus: '0.15'
           memory: '100M'
