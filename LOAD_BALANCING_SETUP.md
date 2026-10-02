@@ -23,13 +23,14 @@ listener-1   listener-2
 ### Resource Impact
 
 - **Before:** 1.0 CPU, 100MB memory
-- **After:** 3.0 CPU, 768MB memory (limits)
+- **After:** 3.0 CPU, 1280MB memory (limits)
   - nginx-lb: 1.0 CPU, 256MB
-  - listener-1: 1.0 CPU, 256MB
-  - listener-2: 1.0 CPU, 256MB
+  - listener-1: 1.0 CPU, 512MB
+  - listener-2: 1.0 CPU, 512MB
 - The memory limits are sized for the UDP receive buffers, which cgroup v2
   charges to the container (see [UDP receive buffers](#udp-receive-buffers)).
-  Steady-state use is far lower.
+  nginx-lb's steady-state use is far lower; the listeners' own use grows with
+  traffic (~200 MB each at ~1 150 pkt/s on the DKMP demo).
 
 ---
 
@@ -161,7 +162,7 @@ Replace the single `listener` service with two instances:
       resources:
         limits:
           cpus: '1.0'
-          memory: '256M'
+          memory: '512M'
         reservations:
           cpus: '0.5'
           memory: '50M'
@@ -188,7 +189,7 @@ Replace the single `listener` service with two instances:
       resources:
         limits:
           cpus: '1.0'
-          memory: '256M'
+          memory: '512M'
         reservations:
           cpus: '0.5'
           memory: '50M'
@@ -824,7 +825,7 @@ upstream listener_514 {
       resources:
         limits:
           cpus: '1.0'
-          memory: '100M'
+          memory: '512M'
         reservations:
           cpus: '0.5'
           memory: '50M'

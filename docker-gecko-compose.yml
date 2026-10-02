@@ -408,15 +408,16 @@ services:
     expose:
       - "514/udp"
     # Note: Also depends on kafka-1 from infrastructure services
-    # 256M: the listener asks for a 36 MB SO_RCVBUF (UdpReceiveBufferSizeBytes),
-    # which the kernel doubles to ~73 MB once net.core.rmem_max allows it. That
-    # memory is charged to this limit; at 100M (steady use ~50M) a full buffer
-    # would not fit. See dolusoft/gecko-setup#7.
+    # 512M: the listener asks for a 36 MB SO_RCVBUF (UdpReceiveBufferSizeBytes),
+    # which the kernel doubles to ~73 MB once net.core.rmem_max allows it, and
+    # that memory is charged to this limit. The process itself grows with
+    # traffic: ~200 MB at ~1 150 pkt/s per listener on the DKMP demo, where 256M
+    # was hit within minutes. See dolusoft/gecko-setup#7.
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: '256M'
+          memory: '512M'
         reservations:
           cpus: '0.5'
           memory: '50M'
@@ -439,15 +440,16 @@ services:
     expose:
       - "514/udp"
     # Note: Also depends on kafka-1 from infrastructure services
-    # 256M: the listener asks for a 36 MB SO_RCVBUF (UdpReceiveBufferSizeBytes),
-    # which the kernel doubles to ~73 MB once net.core.rmem_max allows it. That
-    # memory is charged to this limit; at 100M (steady use ~50M) a full buffer
-    # would not fit. See dolusoft/gecko-setup#7.
+    # 512M: the listener asks for a 36 MB SO_RCVBUF (UdpReceiveBufferSizeBytes),
+    # which the kernel doubles to ~73 MB once net.core.rmem_max allows it, and
+    # that memory is charged to this limit. The process itself grows with
+    # traffic: ~200 MB at ~1 150 pkt/s per listener on the DKMP demo, where 256M
+    # was hit within minutes. See dolusoft/gecko-setup#7.
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: '256M'
+          memory: '512M'
         reservations:
           cpus: '0.5'
           memory: '50M'
