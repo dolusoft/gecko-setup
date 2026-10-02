@@ -23,10 +23,13 @@ listener-1   listener-2
 ### Resource Impact
 
 - **Before:** 1.0 CPU, 100MB memory
-- **After:** 2.5 CPU, 264MB memory
-  - nginx-lb: 0.5 CPU, 64MB
-  - listener-1: 1.0 CPU, 100MB
-  - listener-2: 1.0 CPU, 100MB
+- **After:** 3.0 CPU, 768MB memory (limits)
+  - nginx-lb: 1.0 CPU, 256MB
+  - listener-1: 1.0 CPU, 256MB
+  - listener-2: 1.0 CPU, 256MB
+- The memory limits are sized for the UDP receive buffers, which cgroup v2
+  charges to the container (see [UDP receive buffers](#udp-receive-buffers)).
+  Steady-state use is far lower.
 
 ---
 
@@ -36,7 +39,7 @@ listener-1   listener-2
 
 ```nginx
 user nginx;
-worker_processes auto;
+worker_processes 2;
 error_log /dev/stderr warn;
 pid /var/run/nginx.pid;
 
@@ -58,7 +61,7 @@ stream {
 
     # Port 514 load balancer
     server {
-        listen 514 udp reuseport;
+        listen 514 udp reuseport rcvbuf=8m;
         proxy_pass listener_514;
         proxy_timeout 10s;
         proxy_responses 0;
@@ -72,6 +75,33 @@ stream {
 - `max_fails=3 fail_timeout=30s`: Passive health checks (marks backend down after 3 failures for 30s)
 - `proxy_buffer_size 65536`: 64KB buffer for large syslog messages (RFC 5426 supports up to 65KB)
 - `reuseport`: Allows multiple worker processes to listen on the same port
+- `worker_processes 2`: pinned, not `auto` -- `auto` counts host cores, and each worker's reuseport socket gets the traffic of whichever senders hash onto it, so many sockets means uneven queues
+- `rcvbuf=8m`: per-socket receive buffer (16 MB after the kernel doubles it); only takes effect once the host `net.core.rmem_max` allows it
+
+### UDP receive buffers
+
+`net.core.rmem_max` is **not** namespaced per container: a per-service
+`sysctls:` entry fails with `open /proc/sys/net/core/rmem_max: permission denied`.
+It has to be set on the host, in `/etc/sysctl.d/`:
+
+```bash
+# /etc/sysctl.d/99-gecko.conf
+net.core.rmem_max = 134217728   # 128 MB ceiling; leave rmem_default alone
+```
+
+It is only a ceiling. The sockets that need more ask for it explicitly:
+nginx-lb with `rcvbuf=8m`, the listeners with `UdpReceiveBufferSizeBytes`
+(36 MB). The kernel doubles every request, so nginx-lb holds up to 2 x 16 MB and
+each listener up to ~73 MB. That memory counts against the container limit.
+
+Check the effect with the drop counter (the 5th field, `RcvbufErrors`), which
+should stay flat under normal load:
+
+```bash
+docker exec nginx-lb sh -c "grep '^Udp:' /proc/net/snmp"
+sleep 60
+docker exec nginx-lb sh -c "grep '^Udp:' /proc/net/snmp"
+```
 
 ### 2. Infrastructure Compose (`docker-infra-compose.yml`)
 
@@ -92,8 +122,8 @@ Add nginx-lb service:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '64M'
+          cpus: '1.0'
+          memory: '256M'
         reservations:
           cpus: '0.1'
           memory: '32M'
@@ -131,7 +161,7 @@ Replace the single `listener` service with two instances:
       resources:
         limits:
           cpus: '1.0'
-          memory: '100M'
+          memory: '256M'
         reservations:
           cpus: '0.5'
           memory: '50M'
@@ -158,7 +188,7 @@ Replace the single `listener` service with two instances:
       resources:
         limits:
           cpus: '1.0'
-          memory: '100M'
+          memory: '256M'
         reservations:
           cpus: '0.5'
           memory: '50M'
