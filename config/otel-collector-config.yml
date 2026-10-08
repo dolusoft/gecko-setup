@@ -55,6 +55,14 @@ processors:
       - delete_key(log.body, "service.version")
       - delete_key(log.body, "log.type")
       - delete_key(log.body, "severity_text")
+    # Every record gets its own id (OTel semconv `log.record.uid`). TraceId cannot single
+    # out a record: a request or job logs many lines under one trace, and work outside a
+    # trace logs none. Stamped here, before `routing`, so the ClickHouse row and the Kafka
+    # message of a record carry the same id, whichever producer sent it. A receiver wired
+    # into any pipeline other than logs/in would skip this.
+    - context: log
+      statements:
+      - set(log.attributes["log.record.uid"], UUID())
   batch:
     send_batch_size: 10000
     timeout: 1s
