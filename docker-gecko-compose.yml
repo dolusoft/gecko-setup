@@ -594,7 +594,7 @@ services:
       alertapi:
         condition: service_healthy
     environment:
-      - APP_CONFIG_URL=http://coreapi:8080
+      - APP_CONFIG_URL=http://coreapi:8080/internal
       - ALERT_API_POLICIES_URL=http://alertapi:8080/internal/policies/all
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
