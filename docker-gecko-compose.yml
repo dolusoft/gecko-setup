@@ -519,6 +519,18 @@ services:
     networks:
       - internal_network
     # Note: Also depends on minio and kafka-1 from infrastructure services
+    # Memory grows with the number of data sources signed at once, which is
+    # capped by MaxDataSourceToProcess (core.configuration, Name "signexporter",
+    # default 2, read at startup). Size the limit for every one of them being
+    # behind on its topic at the same time: a source with no committed offset
+    # reads its whole retained topic, so this happens on every first start and
+    # after an outage.
+    #   memory >= 60 MiB + ~190 MiB x MaxDataSourceToProcess
+    # A source that is behind holds its 64 MB Kafka prefetch queue plus a full
+    # 10 000-message channel; a caught-up one costs ~5 MiB. 1G covers the
+    # default cap of 2 with room up to 4 - raise the cap and this limit together.
+    # Rough: measured on one host with real FortiGate data. See
+    # dolusoft/gecko-project-backend#432.
     deploy:
       resources:
         limits:
