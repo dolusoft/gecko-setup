@@ -540,6 +540,34 @@ services:
           cpus: '0.2'
           memory: '40M'
 
+  signimporter:
+    container_name: signimporter
+    hostname: signimporter
+    image: ${LOCAL_REGISTRY}/dolusoftcomp/signimporter:rc
+    depends_on:
+      coreapi:
+        condition: service_healthy
+      contentapi:
+        condition: service_healthy
+    environment:
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - SERVICE_PASSWORD=${SERVICE_PASSWORD}
+      - CORE_API=http://coreapi:8080
+    restart: always
+    networks:
+      - internal_network
+    # Note: Also depends on minio and kafka-1 from infrastructure services
+    # Imports restored archives: without it a restore stops at Indexing 0%
+    # and times out after 30 minutes.
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '1G'
+        reservations:
+          cpus: '0.2'
+          memory: '40M'
+
   filetransfer:
     container_name: filetransfer
     hostname: filetransfer
