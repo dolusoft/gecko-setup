@@ -369,7 +369,7 @@ services:
   # MINIO
   # ---------------------------------------------------------------------------
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: dolusoftcomp/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: minio
     hostname: minio
     restart: always
@@ -405,7 +405,7 @@ services:
   # MINIO INIT
   # ---------------------------------------------------------------------------
   minio-init:
-    image: minio/mc:latest
+    image: dolusoftcomp/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: minio-init
     restart: "no"
     networks:
