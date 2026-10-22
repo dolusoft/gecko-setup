@@ -430,6 +430,7 @@ services:
     image: otel/opentelemetry-collector-contrib:0.126.0
     hostname: otel-collector
     container_name: otel-collector
+    restart: always
     networks:
       - internal_network
     command:
