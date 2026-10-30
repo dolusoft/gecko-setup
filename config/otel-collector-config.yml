@@ -66,6 +66,25 @@ processors:
   batch:
     send_batch_size: 10000
     timeout: 1s
+  # Every flush is one INSERT and one new ClickHouse part. At 1s the otel tables made
+  # ~340 parts/min and their merges re-read the growing day partition again and again
+  # (develop 2026-10-30: ~1.4 merge threads by noon). Tables nobody reads in real time
+  # (otel_metrics_sum/_histogram/..., otel_traces, otel_logs) flush every 10s instead.
+  batch/slow:
+    send_batch_size: 10000
+    timeout: 10s
+  # Realtime widgets poll otel_metrics_gauge in 3-5s buckets, so gauges keep the 1s
+  # batch and every other metric type takes batch/slow. A filter drops what matches.
+  filter/gauge-only:
+    error_mode: ignore
+    metrics:
+      metric:
+        - 'type != METRIC_DATA_TYPE_GAUGE'
+  filter/no-gauge:
+    error_mode: ignore
+    metrics:
+      metric:
+        - 'type == METRIC_DATA_TYPE_GAUGE'
   # The kafka exporter refuses any message over Producer.MaxMessageBytes (default
   # 1_000_000) as a permanent error, so oversized batches are dropped, not retried --
   # the broker's own ceiling is 1_048_588, so raising one without the other buys nothing.
@@ -154,7 +173,7 @@ service:
       exporters: [ clickhouse/otel_filter_alert_logs ]
     logs/log:
       receivers: [ routing ]
-      processors: [ memory_limiter, batch ]
+      processors: [ memory_limiter, batch/slow ]
       exporters: [ clickhouse/default ]
     logs/kafka-log:
       receivers: [ routing ]
@@ -166,9 +185,17 @@ service:
       exporters: [ kafka/audits ]
     traces:
       receivers: [ otlp ]
-      processors: [ memory_limiter, batch ]
+      processors: [ memory_limiter, batch/slow ]
       exporters: [ clickhouse/default ]
     metrics/in:
       receivers: [ otlp ]
       processors: [ memory_limiter, batch ]
-      exporters: [ clickhouse/default, kafka/metrics ]
+      exporters: [ kafka/metrics ]
+    metrics/clickhouse-gauge:
+      receivers: [ otlp ]
+      processors: [ memory_limiter, filter/gauge-only, batch ]
+      exporters: [ clickhouse/default ]
+    metrics/clickhouse-other:
+      receivers: [ otlp ]
+      processors: [ memory_limiter, filter/no-gauge, batch/slow ]
+      exporters: [ clickhouse/default ]
