@@ -146,8 +146,9 @@ The `compose.env` file contains sensitive environment variables:
 
 ```bash
 # Environment variables for docker-compose
-# Local Registry
-LOCAL_REGISTRY=172.16.40.15:5000
+# Docker Hub credentials (managerapi, updater)
+DOCKERHUB_USERNAME=<user>
+DOCKERHUB_TOKEN=<token>
 
 # Secrets
 SHARED_PASSWORD=test
