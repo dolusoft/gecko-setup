@@ -99,10 +99,13 @@ processors:
     send_batch_size: 256
     send_batch_max_size: 256
     timeout: 0s
+  # limit_mib must stay below the container's memory limit (compose: 1G), otherwise the
+  # soft limit never triggers and the kernel OOM-kills the container (exit 137) first.
+  # Soft limit = limit_mib - spike_limit_mib = 550 MiB.
   memory_limiter:
     check_interval: 2s
-    limit_mib: 1800
-    spike_limit_mib: 500
+    limit_mib: 700
+    spike_limit_mib: 150
 extensions:
   health_check:
   pprof:
@@ -133,17 +136,17 @@ exporters:
     username: default
     password: ${SERVICE_PASSWORD}
   kafka/logs:
-    brokers: [ "kafka-1:9092", "kafka-2:9092" ]
+    brokers: [ "kafka-1:9092", "kafka-2:9092", "kafka-3:9092" ]
     topic: otel-logs
     encoding: otlp_json
     protocol_version: 2.6.0
   kafka/metrics:
-    brokers: [ "kafka-1:9092", "kafka-2:9092" ]
+    brokers: [ "kafka-1:9092", "kafka-2:9092", "kafka-3:9092" ]
     topic: otel-metrics
     encoding: otlp_json
     protocol_version: 2.6.0
   kafka/audits:
-    brokers: [ "kafka-1:9092", "kafka-2:9092" ]
+    brokers: [ "kafka-1:9092", "kafka-2:9092", "kafka-3:9092" ]
     topic: otel-audits
     encoding: otlp_json
     protocol_version: 2.6.0
