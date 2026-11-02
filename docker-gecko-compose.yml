@@ -608,7 +608,7 @@ services:
       - CORE_API=http://coreapi:8080
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
       - APP_ACTIVE_RULES_URL=http://alertapi:8080/internal/rules/all
-      - APP_KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092
+      - APP_KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092,kafka-3:9092
       - APP_CLICKHOUSE_SERVERS=clickhouse:9000
       - APP_REDIS_ADDRESS=redis:6379
       - APP_OTEL_ENDPOINT=otel-collector:4317
@@ -644,7 +644,7 @@ services:
       # config.yaml won: redis:6380 (host port, closed inside the network) and
       # kafka-1:19092 (external listeners, hairpinning via the host).
       - REDIS_ADDRESS=redis:6379
-      - KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092,kafka-3:9092
       - OTEL_COLLECTOR_ENDPOINT=${OTEL_ENDPOINT:-otel-collector:4317}
     restart: always
     networks:

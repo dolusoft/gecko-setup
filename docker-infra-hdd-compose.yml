@@ -435,7 +435,6 @@ services:
       - internal_network
     command:
       - "--config=/etc/otel-collector-config.yml"
-      - "--set=service.telemetry.logs.level=DEBUG"
     environment:
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
     volumes:
@@ -450,8 +449,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
-          memory: '300M'
+          cpus: '1.0'
+          memory: '1G'
         reservations:
           cpus: '0.1'
           memory: '80M'
