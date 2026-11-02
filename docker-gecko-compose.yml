@@ -4,7 +4,7 @@ services:
 
   frontend:
     container_name: frontend
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/app-ui:rc
+    image: dolusoftcomp/app-ui:rc
     restart: always
     depends_on:
       coreapi:
@@ -39,7 +39,7 @@ services:
   authentication:
       container_name: authentication
       hostname: authentication
-      image: ${LOCAL_REGISTRY}/dolusoftcomp/authentication-ui:rc
+      image: dolusoftcomp/authentication-ui:rc
       restart: always
       depends_on:
         coreapi:
@@ -76,7 +76,7 @@ services:
 
   docs:
     container_name: docs
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/docs-ui:rc
+    image: dolusoftcomp/docs-ui:rc
     restart: always
     depends_on:
       coreapi:
@@ -111,7 +111,7 @@ services:
 
   gatewayapi:
     container_name: gatewayapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/gatewayapi:rc
+    image: dolusoftcomp/gatewayapi:rc
     restart: always
     depends_on:
       coreapi:
@@ -137,7 +137,7 @@ services:
   coreapi:
     container_name: coreapi
     hostname: coreapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/coreapi:rc
+    image: dolusoftcomp/coreapi:rc
     restart: always
     environment:
       - CORE_API=http://coreapi:8080
@@ -164,7 +164,7 @@ services:
   identityapi:
     container_name: identityapi
     hostname: identityapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/identityapi:rc
+    image: dolusoftcomp/identityapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -194,7 +194,7 @@ services:
   layoutapi:
     container_name: layoutapi
     hostname: layoutapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/layoutapi:rc
+    image: dolusoftcomp/layoutapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -217,7 +217,7 @@ services:
   resolverapi:
     container_name: resolverapi
     hostname: resolverapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/resolverapi:rc
+    image: dolusoftcomp/resolverapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -240,7 +240,7 @@ services:
   collectorapi:
     container_name: collectorapi
     hostname: collectorapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/collectorapi:rc
+    image: dolusoftcomp/collectorapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -264,7 +264,7 @@ services:
   senderapi:
     container_name: senderapi
     hostname: senderapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/senderapi:rc
+    image: dolusoftcomp/senderapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -287,7 +287,7 @@ services:
   reportapi:
     container_name: reportapi
     hostname: reportapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/reportapi:rc
+    image: dolusoftcomp/reportapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -310,7 +310,7 @@ services:
   alertapi:
     container_name: alertapi
     hostname: alertapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/alertapi:rc
+    image: dolusoftcomp/alertapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -339,7 +339,7 @@ services:
   managerapi:
     container_name: managerapi
     hostname: managerapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/managerapi:rc
+    image: dolusoftcomp/managerapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -349,6 +349,8 @@ services:
       - /sys:/host_sys:ro
     user: root
     environment:
+      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-}
+      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN:-}
       - CORE_API=http://coreapi:8080
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
@@ -367,7 +369,7 @@ services:
   updater:
     container_name: updater
     hostname: updater
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/updater:rc
+    image: dolusoftcomp/updater:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -375,8 +377,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     user: root
     environment:
+      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-}
+      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN:-}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
-      - DOTNET_ENVIRONMENT=DockerTest
       - CORE_API=http://coreapi:8080
     restart: always
     networks:
@@ -393,7 +396,7 @@ services:
   listener-1:
     container_name: listener-1
     hostname: listener-1
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:rc
+    image: dolusoftcomp/listener:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -425,7 +428,7 @@ services:
   listener-2:
     container_name: listener-2
     hostname: listener-2
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:rc
+    image: dolusoftcomp/listener:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -457,7 +460,7 @@ services:
   preprocessor:
     container_name: preprocessor
     hostname: preprocessor
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/preprocessor:rc
+    image: dolusoftcomp/preprocessor:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -482,7 +485,7 @@ services:
   sinker:
     container_name: sinker
     hostname: sinker
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/sinker:rc
+    image: dolusoftcomp/sinker:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -504,7 +507,7 @@ services:
   signexporter:
     container_name: signexporter
     hostname: signexporter
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/signexporter:rc
+    image: dolusoftcomp/signexporter:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -543,7 +546,7 @@ services:
   signimporter:
     container_name: signimporter
     hostname: signimporter
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/signimporter:rc
+    image: dolusoftcomp/signimporter:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -571,7 +574,7 @@ services:
   filetransfer:
     container_name: filetransfer
     hostname: filetransfer
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/filetransfer:rc
+    image: dolusoftcomp/filetransfer:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -598,7 +601,7 @@ services:
   correlation-engine:
     container_name: correlation-engine
     hostname: correlation-engine
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/correlation-engine:rc
+    image: dolusoftcomp/correlation-engine:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -627,7 +630,7 @@ services:
   alert-notifier:
     container_name: alert-notifier
     hostname: alert-notifier
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/alert-notifier:rc
+    image: dolusoftcomp/alert-notifier:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -662,7 +665,7 @@ services:
   contentapi:
     container_name: contentapi
     hostname: contentapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/contentapi:rc
+    image: dolusoftcomp/contentapi:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -693,7 +696,7 @@ services:
   fileexporter:
     container_name: fileexporter
     hostname: fileexporter
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/fileexporter:rc
+    image: dolusoftcomp/fileexporter:rc
     depends_on:
       coreapi:
         condition: service_healthy
@@ -722,7 +725,7 @@ services:
   hotspotapi:
     container_name: hotspotapi
     hostname: hotspotapi
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/hotspotapi:rc
+    image: dolusoftcomp/hotspotapi:rc
     depends_on:
       - coreapi
     environment:

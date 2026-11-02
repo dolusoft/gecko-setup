@@ -143,7 +143,7 @@ Replace the single `listener` service with two instances:
   listener-1:
     container_name: listener-1
     hostname: listener-1
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:dev
+    image: dolusoftcomp/listener:dev
     depends_on:
       coreapi:
         condition: service_healthy
@@ -170,7 +170,7 @@ Replace the single `listener` service with two instances:
   listener-2:
     container_name: listener-2
     hostname: listener-2
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:dev
+    image: dolusoftcomp/listener:dev
     depends_on:
       coreapi:
         condition: service_healthy
@@ -488,7 +488,7 @@ services:
   listener-1-green:
     container_name: listener-1-green
     hostname: listener-1-green
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:dev
+    image: dolusoftcomp/listener:dev
     # ... same config as listener-1
     profiles:
       - green
@@ -496,7 +496,7 @@ services:
   listener-2-green:
     container_name: listener-2-green
     hostname: listener-2-green
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:dev
+    image: dolusoftcomp/listener:dev
     # ... same config as listener-2
     profiles:
       - green
@@ -807,7 +807,7 @@ upstream listener_514 {
   listener-3:
     container_name: listener-3
     hostname: listener-3
-    image: ${LOCAL_REGISTRY}/dolusoftcomp/listener:dev
+    image: dolusoftcomp/listener:dev
     depends_on:
       coreapi:
         condition: service_healthy
