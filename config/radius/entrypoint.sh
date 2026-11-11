@@ -16,4 +16,7 @@ if [ -f "/tmp/radius-default" ]; then
     echo "[entrypoint] sites-available/default overridden"
 fi
 
-exec /opt/sbin/radiusd -X
+# -X is debug mode: it prints every request attribute, User-Password and the
+# rest module's JSON body included, into `docker logs`. Run in the foreground
+# with normal logging to stdout instead.
+exec /opt/sbin/radiusd -f -l stdout
