@@ -614,6 +614,7 @@ services:
         condition: service_healthy
     environment:
       - CORE_API=http://coreapi:8080
+      - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
       - APP_ACTIVE_RULES_URL=http://alertapi:8080/internal/rules/all
       - APP_KAFKA_BOOTSTRAP_SERVERS=kafka-1:9092,kafka-2:9092,kafka-3:9092
