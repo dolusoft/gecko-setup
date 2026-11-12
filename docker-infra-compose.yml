@@ -546,6 +546,7 @@ services:
     environment:
       - TZ=Europe/Istanbul
       - SHARED_PASSWORD=${SHARED_PASSWORD}
+      - RADIUS_REST_SECRET=${RADIUS_REST_SECRET:-}
     restart: unless-stopped
     networks:
       - internal_network

@@ -12,6 +12,9 @@ server default {
     authorize {
         filter_username
         preprocess
+        update control {
+            &REST-HTTP-Header := "X-Radius-Secret: ${RADIUS_REST_SECRET}"
+        }
         rest
         if (ok) {
             update control {
@@ -29,6 +32,9 @@ server default {
         acct_unique
     }
     accounting {
+        update control {
+            &REST-HTTP-Header := "X-Radius-Secret: ${RADIUS_REST_SECRET}"
+        }
         rest
     }
     post-auth {
