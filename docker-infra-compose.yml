@@ -359,7 +359,10 @@ services:
     ports:
       - '6380:6379'
     environment:
-      - REDIS_ARGS=--requirepass ${SERVICE_PASSWORD}
+      # maxmemory = ~80% of the 500M container limit (#20). noeviction: writes fail
+      # with OOM errors at the cap instead of the container being OOM-killed; no key
+      # (leases, channels, tasks) is ever evicted.
+      - REDIS_ARGS=--requirepass ${SERVICE_PASSWORD} --maxmemory 400mb --maxmemory-policy noeviction
     volumes:
       - redisdata:/data
     deploy:
