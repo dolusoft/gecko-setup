@@ -29,7 +29,7 @@ This document describes the security measures implemented for the Gecko Project 
    - ClickHouse (password authentication)
    - All application services now use `SHARED_PASSWORD` and `SERVICE_PASSWORD`
 
-3. **Configuration Encryption**: Sensitive configuration data (passwords, registry URLs) is encrypted at rest using Ansible Vault to prevent:
+3. **Configuration Encryption**: Sensitive configuration data (passwords, Docker Hub credentials) is encrypted at rest using Ansible Vault to prevent:
    - Accidental exposure through version control
    - Unauthorized access on the host system
    - Plain-text secrets in Docker Compose files
@@ -54,6 +54,44 @@ This document describes the security measures implemented for the Gecko Project 
 | Kafka Broker 1 | 9092 | 19092 | External |
 | Kafka Broker 2 | 9092 | 29092 | External |
 | Kafka Controller | 9093 | 39093 | External |
+
+### Admin Interfaces (localhost only)
+
+These have no authentication of their own, or are protected by a single admin
+password, so they are published on `ADMIN_BIND_ADDRESS` (default `127.0.0.1`)
+instead of all interfaces:
+
+| Service | Host Port | Container Port |
+|---------|-----------|----------------|
+| MinIO console | 9002 | 9001 |
+| MinIO S3 API | 9003 | 9000 |
+| phpLDAPadmin | 8080 | 80 |
+| kafka-ui | 9080 | 8080 |
+
+Application services reach MinIO over the compose network (`minio:9000`), so they
+are not affected. To use an admin UI from another machine, tunnel it over SSH:
+
+```bash
+ssh -L 9002:127.0.0.1:9002 -L 9080:127.0.0.1:9080 user@gecko-host
+# then open http://localhost:9002 (MinIO) or http://localhost:9080 (kafka-ui)
+```
+
+Set `ADMIN_BIND_ADDRESS=0.0.0.0` only on an isolated dev/lab host.
+
+### MinIO Root Password
+
+`MINIO_ROOT_PASSWORD` sets the MinIO root password; `minio-init` and CoreApi (which
+seeds the internal S3 storage adapter on every start) read the same variable. The
+setup script generates a random value per install. When the variable is unset,
+compose and CoreApi fall back to the old shared default, which is public in this
+repository: set a unique value on every install, then restart `minio`, `minio-init`
+and `coreapi` together.
+
+### Container Images
+
+All images are pulled from Docker Hub. Gecko images (`dolusoftcomp/*`) are private:
+the host logs in with `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`, and ManagerApi and
+Updater receive the same values from `.env`. There is no internal registry.
 
 ### Password-Protected Services
 
@@ -150,9 +188,10 @@ The `compose.env` file contains sensitive environment variables:
 DOCKERHUB_USERNAME=<user>
 DOCKERHUB_TOKEN=<token>
 
-# Secrets
-SHARED_PASSWORD=test
-SERVICE_PASSWORD=test
+# Secrets (set unique values per install)
+SHARED_PASSWORD=<shared-password>
+SERVICE_PASSWORD=<service-password>
+MINIO_ROOT_PASSWORD=<minio-root-password>
 ```
 
 ### Encryption
