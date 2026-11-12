@@ -387,11 +387,14 @@ services:
     expose:
       - "9000"
     ports:
-      - "9002:9001"
-      - "9003:9000"
+      # Admin console / S3 API: localhost only by default (ADMIN_BIND_ADDRESS, compose.env).
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:9002:9001"
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:9003:9000"
     environment:
       MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: test2023!!
+      # Unset keeps the old shared default so existing installs keep working; the setup
+      # script writes a random value. CoreApi seeds the same variable (fallback must match).
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-test2023!!}
       MINIO_SERVER_URL: "http://minio:9000"
       MINIO_AUDIT_KAFKA_ENABLE: "on"
       MINIO_AUDIT_KAFKA_BROKERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
@@ -421,9 +424,11 @@ services:
       - internal_network
     depends_on:
       - minio
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-test2023!!}
     entrypoint: >
       /bin/sh -c "
-      until mc alias set local http://minio:9000 admin 'test2023!!'; do
+      until mc alias set local http://minio:9000 admin \"$$MINIO_ROOT_PASSWORD\"; do
         echo 'Waiting for MinIO...'; sleep 2;
       done;
       mc mb --ignore-existing local/hotspot-assets;
@@ -589,7 +594,7 @@ services:
     image: osixia/phpldapadmin:latest
     container_name: hotspot-phpldapadmin
     ports:
-      - "8080:80"
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:8080:80"
     environment:
       - PHPLDAPADMIN_LDAP_HOSTS=hotspot-openldap
       - PHPLDAPADMIN_HTTPS=false
@@ -603,14 +608,14 @@ services:
   # KAFKA UI
   # ---------------------------------------------------------------------------
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2
     container_name: kafka-ui
     hostname: kafka-ui
     restart: always
     networks:
       - internal_network
     ports:
-      - "9080:8080"
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:9080:8080"
     depends_on:
       kafka-1:
         condition: service_healthy
