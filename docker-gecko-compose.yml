@@ -143,8 +143,9 @@ services:
       - CORE_API=http://coreapi:8080
       - SHARED_PASSWORD=${SHARED_PASSWORD}
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
-      # Seeded into the internal S3 storage adapter; must match minio (infra compose).
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-test2023!!}
+      # MinIO's root password (SERVICE_PASSWORD, infra compose); saved into the internal
+      # S3 storage adapter on first install.
+      - MINIO_ROOT_PASSWORD=${SERVICE_PASSWORD}
     networks:
       - internal_network
     healthcheck:

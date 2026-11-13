@@ -392,9 +392,9 @@ services:
       - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:9003:9000"
     environment:
       MINIO_ROOT_USER: admin
-      # Unset keeps the old shared default so existing installs keep working; the setup
-      # script writes a random value. CoreApi seeds the same variable (fallback must match).
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-test2023!!}
+      # Same password as the databases. CoreApi saves it into its internal S3 storage
+      # adapter on first install (docker-gecko-compose.yml passes it to coreapi).
+      MINIO_ROOT_PASSWORD: ${SERVICE_PASSWORD}
       MINIO_SERVER_URL: "http://minio:9000"
       MINIO_AUDIT_KAFKA_ENABLE: "on"
       MINIO_AUDIT_KAFKA_BROKERS: "kafka-1:9092,kafka-2:9092,kafka-3:9092"
@@ -425,7 +425,7 @@ services:
     depends_on:
       - minio
     environment:
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-test2023!!}
+      MINIO_ROOT_PASSWORD: ${SERVICE_PASSWORD}
     entrypoint: >
       /bin/sh -c "
       until mc alias set local http://minio:9000 admin \"$$MINIO_ROOT_PASSWORD\"; do

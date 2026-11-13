@@ -80,12 +80,11 @@ Set `ADMIN_BIND_ADDRESS=0.0.0.0` only on an isolated dev/lab host.
 
 ### MinIO Root Password
 
-`MINIO_ROOT_PASSWORD` sets the MinIO root password; `minio-init` and CoreApi (which
-seeds the internal S3 storage adapter on every start) read the same variable. The
-setup script generates a random value per install. When the variable is unset,
-compose and CoreApi fall back to the old shared default, which is public in this
-repository: set a unique value on every install, then restart `minio`, `minio-init`
-and `coreapi` together.
+MinIO's root password is `SERVICE_PASSWORD`. Compose passes it as
+`MINIO_ROOT_PASSWORD` to `minio`, `minio-init` and CoreApi; CoreApi saves it into the
+internal S3 storage adapter on the first install only. Changing `SERVICE_PASSWORD`
+later therefore also means updating the `internal-s3-adapter` secret key (see
+INSTALL.md, "Upgrading an Install Made Before MinIO Used SERVICE_PASSWORD").
 
 ### Container Images
 
@@ -190,8 +189,7 @@ DOCKERHUB_TOKEN=<token>
 
 # Secrets (set unique values per install)
 SHARED_PASSWORD=<shared-password>
-SERVICE_PASSWORD=<service-password>
-MINIO_ROOT_PASSWORD=<minio-root-password>
+SERVICE_PASSWORD=<service-password>   # also MinIO's root password
 ```
 
 ### Encryption

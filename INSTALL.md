@@ -159,9 +159,8 @@ DOCKERHUB_USERNAME=dolusoftcomp   # --dockerhub-username, default dolusoftcomp
 DOCKERHUB_TOKEN=<prompted>        # --dockerhub-token
 
 # Security (prompted during install)
-SERVICE_PASSWORD=<prompted>    # Database password (MongoDB, ClickHouse, Redis)
+SERVICE_PASSWORD=<prompted>    # Database and MinIO password (MongoDB, ClickHouse, Redis, MinIO)
 SHARED_PASSWORD=<prompted>     # Cryptography and inter-service authentication
-MINIO_ROOT_PASSWORD=<random>   # Generated per install; also seeded into CoreApi
 
 # Kafka
 KAFKA_EXTERNAL_HOST=<detected> # This host's address; --kafka-external-host overrides
@@ -171,7 +170,7 @@ All of these can also be given as environment variables of the same name instead
 options, which keeps them out of the process list and shell history.
 
 **Password Prompts (in order):**
-1. **SERVICE_PASSWORD**: Used for database authentication (MongoDB, ClickHouse, Redis)
+1. **SERVICE_PASSWORD**: Used for database authentication (MongoDB, ClickHouse, Redis) and as MinIO's root password
 2. **SHARED_PASSWORD**: Used for all cryptographic operations and inter-service authentication. Required: outside Development a backend service whose `SHARED_PASSWORD` is missing or empty stops at startup.
 3. **VAULT_PASSWORD** (prompted at end): Master password to encrypt/decrypt the .env file using ansible-vault
 
@@ -335,7 +334,6 @@ Infrastructure and application services run as two separate compose stacks shari
 │  • Get SERVICE_PASSWORD (for MongoDB, ClickHouse, Redis)        │
 │  • Get SHARED_PASSWORD (for cryptography & auth)                │
 │  • Get Docker Hub token, detect KAFKA_EXTERNAL_HOST             │
-│  • Generate MINIO_ROOT_PASSWORD                                 │
 │  • Validate password strength (also for options/env variables)  │
 │  • Create .env (Docker Hub credentials, passwords, Kafka host)  │
 └─────────────────────────────────────────────────────────────────┘
@@ -414,7 +412,7 @@ The script will:
 
 The installer will prompt for three passwords:
 
-1. **SERVICE_PASSWORD**: Database authentication (MongoDB, ClickHouse, Redis)
+1. **SERVICE_PASSWORD**: Database authentication (MongoDB, ClickHouse, Redis) and MinIO's root password
 2. **SHARED_PASSWORD**: Cryptographic operations and inter-service authentication
 3. **VAULT_PASSWORD**: Master password to encrypt/decrypt the configuration file
 
@@ -629,6 +627,20 @@ docker compose -f docker-gecko-compose.yml pull
 # Restart with new images
 docker compose -f docker-gecko-compose.yml up -d
 ```
+
+### Upgrading an Install Made Before MinIO Used SERVICE_PASSWORD
+
+MinIO's root password is `SERVICE_PASSWORD`. Older compose files used a separate
+`MINIO_ROOT_PASSWORD` (the shared default `test2023!!`, or a random value the setup
+script wrote to `.env`). CoreApi saves MinIO's password into its `internal-s3-adapter`
+storage adapter only on the first install, so taking the new compose files changes
+MinIO's password but not the saved one. Until they match, everything that reads or
+writes MinIO through that adapter (exports, hotspot assets) fails to authenticate.
+
+After restarting `minio`, `minio-init` and `coreapi` with the new compose files, edit
+the `internal-s3-adapter` storage adapter and set its secret key to the value of
+`SERVICE_PASSWORD` in `.env`. The `MINIO_ROOT_PASSWORD` line in `.env`, if there is
+one, is no longer read and can be removed.
 
 ---
 
