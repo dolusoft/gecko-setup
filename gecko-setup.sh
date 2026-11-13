@@ -26,7 +26,6 @@ SHARED_PASSWORD="${SHARED_PASSWORD:-}"
 VAULT_PASSWORD="${VAULT_PASSWORD:-}"
 DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-dolusoftcomp}"
 DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN:-}"
-MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-}"
 KAFKA_EXTERNAL_HOST="${KAFKA_EXTERNAL_HOST:-}"
 SKIP_KERNEL=0
 SKIP_DEPS=0
@@ -446,7 +445,7 @@ Gecko Platform Installation Script v${VERSION}
 Usage: curl -sSL ${BASE_URL}/gecko-setup.sh | sudo sh -s -- [OPTIONS]
 
 Options:
-  --service-password PW     Database password (MongoDB, ClickHouse, Redis)
+  --service-password PW     Database and MinIO password (MongoDB, ClickHouse, Redis, MinIO)
   --shared-password PW      Cryptography and inter-service authentication
   --vault-password PW       Ansible vault password (for encrypting .env)
   --dockerhub-username U    Docker Hub user for the private Gecko images
@@ -470,8 +469,8 @@ Options:
 
 Secrets can be given as environment variables instead of options, so they do not
 show up in the process list or shell history: SERVICE_PASSWORD, SHARED_PASSWORD,
-VAULT_PASSWORD, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, MINIO_ROOT_PASSWORD (generated
-when unset), KAFKA_EXTERNAL_HOST. Run as root (or use sudo -E) so they are kept.
+VAULT_PASSWORD, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, KAFKA_EXTERNAL_HOST. Run as
+root (or use sudo -E) so they are kept.
 
 Examples:
   # Standard installation (prompts for passwords and the Docker Hub token)
@@ -988,11 +987,6 @@ require_valid_password() {
     fi
 }
 
-# Random alphanumeric secret (MinIO root password).
-generate_secret() {
-    LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 32
-}
-
 resolve_dockerhub_credentials() {
     if [ -z "$DOCKERHUB_TOKEN" ]; then
         if [ "$NON_INTERACTIVE" -eq 1 ]; then
@@ -1104,19 +1098,6 @@ configure_environment() {
     resolve_dockerhub_credentials
     resolve_kafka_external_host
 
-    # MinIO root password: unique per install unless one is given.
-    if [ -z "$MINIO_ROOT_PASSWORD" ]; then
-        MINIO_ROOT_PASSWORD=$(generate_secret)
-        if [ ${#MINIO_ROOT_PASSWORD} -lt 32 ]; then
-            log_error "Could not generate a random MinIO password; set MINIO_ROOT_PASSWORD"
-            exit 1
-        fi
-        log_info "Generated a random MinIO root password (stored in .env)"
-    elif [ ${#MINIO_ROOT_PASSWORD} -lt 12 ]; then
-        log_error "MINIO_ROOT_PASSWORD must be at least 12 characters"
-        exit 1
-    fi
-
     # Create .env file
     log_info "Creating environment configuration..."
 
@@ -1126,7 +1107,6 @@ configure_environment() {
         # Done via printf so the raw password bytes are never re-interpreted by the shell
         _svc_pw=$(printf '%s' "$SERVICE_PASSWORD" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g')
         _shared_pw=$(printf '%s' "$SHARED_PASSWORD" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g')
-        _minio_pw=$(printf '%s' "$MINIO_ROOT_PASSWORD" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g')
         _hub_token=$(printf '%s' "$DOCKERHUB_TOKEN" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g')
 
         # Write static header with a quoted heredoc (<<'EOF') so no shell expansion occurs
@@ -1139,9 +1119,8 @@ EOF
 
         # Append passwords via printf — values are already escaped, no heredoc expansion risk
         printf '# Docker Hub credentials (private Gecko images; ManagerApi and Updater use them too)\nDOCKERHUB_USERNAME="%s"\nDOCKERHUB_TOKEN="%s"\n\n' "$DOCKERHUB_USERNAME" "$_hub_token" >> "$INSTALL_DIR/.env"
-        printf '# Database Authentication\nSERVICE_PASSWORD="%s"\n\n' "$_svc_pw" >> "$INSTALL_DIR/.env"
+        printf '# Database and MinIO Authentication\nSERVICE_PASSWORD="%s"\n\n' "$_svc_pw" >> "$INSTALL_DIR/.env"
         printf '# Cryptography and Inter-service Authentication\nSHARED_PASSWORD="%s"\n\n' "$_shared_pw" >> "$INSTALL_DIR/.env"
-        printf '# MinIO root password (also seeded into CoreApi)\nMINIO_ROOT_PASSWORD="%s"\n\n' "$_minio_pw" >> "$INSTALL_DIR/.env"
         printf '# Address Kafka advertises on its EXTERNAL listener (this host)\nKAFKA_EXTERNAL_HOST=%s\n' "$KAFKA_EXTERNAL_HOST" >> "$INSTALL_DIR/.env"
         chmod 600 "$INSTALL_DIR/.env"
 
