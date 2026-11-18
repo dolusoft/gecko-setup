@@ -735,8 +735,13 @@ services:
     container_name: hotspotapi
     hostname: hotspotapi
     image: dolusoftcomp/hotspotapi:rc
+    # Wait for healthy, not just started: hotspotapi reads its config from
+    # coreapi at startup, gives up after ~15s and exits (139) otherwise.
     depends_on:
-      - coreapi
+      coreapi:
+        condition: service_healthy
+      identityapi:
+        condition: service_healthy
     environment:
       - ASPNETCORE_HTTP_PORTS=8080
       - CORE_API=http://coreapi:8080
