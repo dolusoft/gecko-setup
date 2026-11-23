@@ -251,7 +251,7 @@ Infrastructure and application services run as two separate compose stacks shari
 | Service | Purpose | Ports | Resources |
 |---------|---------|-------|-----------|
 | frontend | Web UI (Nginx/HTTPS) | 443, 24678 | 0.3 CPU, 150M |
-| docs | Documentation UI | 3013-3015 | 0.3 CPU, 30M |
+| docs | Documentation UI | 3015 | 0.3 CPU, 30M |
 | gatewayapi | YARP API Gateway | 5100, 5101 | 0.2 CPU, 80M |
 | coreapi | Central Config | internal | 0.2 CPU, 80M |
 | identityapi | Authentication | internal | 0.2 CPU, 80M |
