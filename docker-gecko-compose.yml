@@ -76,13 +76,15 @@ services:
 
   docs:
     container_name: docs
-    image: dolusoftcomp/docs-ui:rc
+    # Published as gecko-docs-ui since rc-0.1.0; the old docs-ui repository still carries an rc-0.1.0 tag from
+    # August that no longer starts here (gecko-project-backend#2086).
+    image: dolusoftcomp/gecko-docs-ui:rc
     restart: always
     depends_on:
       coreapi:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "-k", "https://localhost:3015/" ]
+      test: [ "CMD", "curl", "-f", "-k", "https://localhost:3017/version.json" ]
       timeout: 10s
       start_period: 60s
       retries: 3
@@ -97,9 +99,8 @@ services:
     networks:
       - internal_network
     ports:
-      - 3013:3013
-      - 3014:3014
-      - 3015:3015
+      # The image serves on 3017; the host keeps 3015, the port users already reach docs on.
+      - 3015:3017
     deploy:
       resources:
         limits:
