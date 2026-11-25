@@ -29,15 +29,3 @@ dn: ou=local-groups,dc=gecko,dc=local
 objectClass: organizationalUnit
 ou: local-groups
 description: Local user groups
-
-# ── Test user (LDAP auth test — ou=hotspot-users) ────────────────────────────
-dn: uid=testuser,ou=hotspot-users,dc=gecko,dc=local
-objectClass: inetOrgPerson
-objectClass: organizationalPerson
-objectClass: person
-objectClass: top
-uid: testuser
-cn: Test User
-sn: User
-mail: testuser@gecko.local
-userPassword: ${SHARED_PASSWORD}

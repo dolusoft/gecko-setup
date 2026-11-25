@@ -36,8 +36,9 @@ NON_INTERACTIVE=0
 FORCE=0
 VERBOSE=0
 
-# NTP servers tried in order until one succeeds
-NTP_SERVERS="pool.ntp.org time.cloudflare.com time.google.com ntp.ubuntu.com"
+# NTP servers tried in order until one succeeds. Override with an internal server
+# on networks without Internet access: NTP_SERVERS="ntp.example.local" sh gecko-setup.sh
+NTP_SERVERS="${NTP_SERVERS:-pool.ntp.org time.cloudflare.com time.google.com ntp.ubuntu.com}"
 
 # ============================================================================
 # Colors and Output
