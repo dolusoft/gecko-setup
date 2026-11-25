@@ -477,9 +477,11 @@ services:
   nginx-lb:
     container_name: nginx-lb
     hostname: nginx-lb
-    # 1.28: the upstream "resolve" parameter used in config/nginx.conf became
+    # The upstream "resolve" parameter used in config/nginx.conf became
     # available in open-source nginx in 1.27.3 (previously NGINX Plus only).
-    image: nginx:1.28-alpine
+    # 1.30.8: fixes the November 2026 nginx CVEs (CVE-2026-123007 et al.,
+    # CVE-2026-132779). Bump the patch version when new fixes land.
+    image: nginx:1.30.8-alpine
     restart: always
     cap_add:
       - NET_ADMIN
@@ -520,7 +522,7 @@ services:
   content-nginx:
     container_name: content-nginx
     hostname: content-nginx
-    image: nginx:1.25-alpine
+    image: nginx:1.30.8-alpine
     restart: always
     volumes:
       - ./config/content-nginx.conf:/etc/nginx/nginx.conf:ro

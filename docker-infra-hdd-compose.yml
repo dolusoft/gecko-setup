@@ -496,7 +496,7 @@ services:
   nginx-lb:
     container_name: nginx-lb
     hostname: nginx-lb
-    image: nginx:1.25-alpine
+    image: nginx:1.30.8-alpine
     restart: always
     cap_add:
       - NET_ADMIN
