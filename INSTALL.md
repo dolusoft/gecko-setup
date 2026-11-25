@@ -100,8 +100,9 @@ Hosted files:
 │   ├── otel-collector-config.yml      # OTEL routing config
 │   ├── nginx.conf                     # nginx-lb UDP load balancer config (syslog 514)
 │   ├── ldap/
-│   │   ├── bootstrap.ldif             # OpenLDAP initial OU and test user seed
-│   │   └── entrypoint.sh             # Substitutes SHARED_PASSWORD into ldif at startup
+│   │   ├── bootstrap.ldif             # OpenLDAP OUs (hotspot-users, local-users, local-groups); no users
+│   │   ├── render-ldif.sh             # Renders bootstrap.ldif for bootstrap-init.sh (manual, not run by compose)
+│   │   └── bootstrap-init.sh          # ldapadd of the rendered LDIF (manual, not run by compose)
 │   └── radius/
 │       ├── clients.conf               # FreeRADIUS NAS client definitions
 │       ├── entrypoint.sh             # Substitutes SHARED_PASSWORD into clients.conf at startup
@@ -129,7 +130,8 @@ Hosted files:
 │   ├── nginx.conf
 │   ├── ldap/
 │   │   ├── bootstrap.ldif
-│   │   └── entrypoint.sh
+│   │   ├── render-ldif.sh
+│   │   └── bootstrap-init.sh
 │   └── radius/
 │       ├── clients.conf
 │       ├── entrypoint.sh
@@ -509,6 +511,14 @@ curl -sSL https://raw.githubusercontent.com/dolusoft/gecko-setup/refs/heads/main
 
 Use `-v` or `--verbose` when troubleshooting authentication, configuration, or startup issues.
 
+**`.env` can stay in plain text.** The installer leaves `$INSTALL_DIR/.env` unencrypted (mode `600`,
+root only) and prints a warning in these cases:
+- `-y` without `VAULT_PASSWORD` / `--vault-password` (non-interactive mode cannot prompt for it)
+- `--skip-encryption`
+- Ansible is not installed (`--skip-deps` on a host without it, or the install failed)
+
+To encrypt it afterwards: `ansible-vault encrypt /opt/gecko/.env`.
+
 ---
 
 ## Firewall Rules Required
@@ -528,6 +538,48 @@ ufw allow 8124/tcp     # ClickHouse HTTP
 The admin UIs (MinIO console/API 9002/9003, phpLDAPadmin 8080, kafka-ui 9080) listen
 on 127.0.0.1 only (`ADMIN_BIND_ADDRESS`). Reach them over an SSH tunnel, e.g.
 `ssh -L 9002:127.0.0.1:9002 user@gecko-host`.
+
+### Outbound Connections
+
+The installer connects out to:
+
+| Destination | Port | Why | Skipped with |
+|---|---|---|---|
+| `raw.githubusercontent.com`, `github.com` (`codeload.github.com`) | 443/tcp | The script downloads itself again for interactive mode, then downloads this repository's archive (`config/` and compose files) | `BASE_URL` / `REPO_ARCHIVE_URL` pointing at an internal mirror |
+| `pool.ntp.org`, `time.cloudflare.com`, `time.google.com`, `ntp.ubuntu.com` (tried in order) | 123/udp | Clock check and sync (TLS, Kafka and MongoDB need a correct clock). The install stops if none answers | `NTP_SERVERS="ntp.example.local"` to use an internal server |
+| `download.docker.com` | 443/tcp | Docker CE packages (Ubuntu/Debian/RHEL) | `--skip-deps` |
+| OS package mirrors | 80, 443/tcp | `ca-certificates`, `curl`, `gnupg`, `ansible`, `ntpdate`/`chrony` | `--skip-deps` |
+| Docker Hub (`registry-1.docker.io`, `auth.docker.io`, `production.cloudflare.docker.com`) | 443/tcp | Image pulls; Gecko images are private (`DOCKERHUB_TOKEN`) | — |
+
+The updater and managerapi containers also pull from Docker Hub after the install.
+
+**Closed networks:** a fully offline install is not supported: the installer always runs
+`docker login` against Docker Hub and `docker compose pull`, and stops if either fails. Allow Docker Hub
+(and GitHub, unless mirrored) for the duration of the install. Everything else can stay internal:
+install Docker and Ansible beforehand and run with `--skip-deps`, serve the script and repository
+archive from an internal mirror (`BASE_URL`, `REPO_ARCHIVE_URL`), and set `NTP_SERVERS` to an internal
+NTP server. The variables must reach the script: with `sudo`, use `sudo -E` or
+`sudo env NTP_SERVERS=... sh`.
+
+### LDAP Users
+
+`config/ldap/bootstrap.ldif` creates the OUs only (`hotspot-users` with `temp`/`pms`/`captive`,
+`local-users`, `local-groups`). The compose files do not load it; `render-ldif.sh` and
+`bootstrap-init.sh` apply it by hand. No user account comes with an install. For a manual LDAP/RADIUS
+test, create a user with its own password and delete it when done:
+
+```bash
+docker exec -i hotspot-openldap sh -c 'ldapadd -x -H ldap://localhost -D cn=admin,dc=gecko,dc=local -w "$LDAP_ADMIN_PASSWORD"' <<'EOF'
+dn: uid=ldap-test,ou=captive,ou=hotspot-users,dc=gecko,dc=local
+objectClass: inetOrgPerson
+uid: ldap-test
+cn: LDAP Test
+sn: Test
+EOF
+docker exec -it hotspot-openldap sh -c 'ldappasswd -x -H ldap://localhost -D cn=admin,dc=gecko,dc=local -w "$LDAP_ADMIN_PASSWORD" -S uid=ldap-test,ou=captive,ou=hotspot-users,dc=gecko,dc=local'
+# when done:
+docker exec hotspot-openldap sh -c 'ldapdelete -x -H ldap://localhost -D cn=admin,dc=gecko,dc=local -w "$LDAP_ADMIN_PASSWORD" uid=ldap-test,ou=captive,ou=hotspot-users,dc=gecko,dc=local'
+```
 
 ---
 
