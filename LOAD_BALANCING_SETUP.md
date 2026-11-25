@@ -112,7 +112,7 @@ Add nginx-lb service:
   nginx-lb:
     container_name: nginx-lb
     hostname: nginx-lb
-    image: nginx:1.25-alpine
+    image: nginx:1.30.8-alpine
     restart: always
     volumes:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -460,7 +460,7 @@ services:
   nginx-lb-green:
     # Green environment (standby)
     container_name: nginx-lb-green
-    image: nginx:1.25-alpine
+    image: nginx:1.30.8-alpine
     restart: always
     volumes:
       - ./config/nginx-green.conf:/etc/nginx/nginx.conf:ro
@@ -559,7 +559,7 @@ docker run -d --name nginx-lb-green \
   --network gecko_internal_network \
   -p 5140:514/udp \
   -v $(pwd)/config/nginx-new.conf:/etc/nginx/nginx.conf:ro \
-  nginx:1.25-alpine
+  nginx:1.30.8-alpine
 
 # 2. Update firewall/load balancer to send traffic to 5140 instead of 514
 # (External load balancer or iptables redirect)
@@ -573,7 +573,7 @@ docker run -d --name nginx-lb \
   --network gecko_internal_network \
   -p 514:514/udp \
   -v $(pwd)/config/nginx-new.conf:/etc/nginx/nginx.conf:ro \
-  nginx:1.25-alpine
+  nginx:1.30.8-alpine
 ```
 
 #### When to Use Blue-Green Deployment
