@@ -608,7 +608,7 @@ check_prerequisites() {
 
     # Check port conflicts
     log_info "Checking for port conflicts..."
-    ports_to_check="443 514 5100 5101 8124 9002"
+    ports_to_check="443 514 5101 8124 9002"
     port_conflicts=0
 
     for port in $ports_to_check; do
@@ -1540,7 +1540,6 @@ post_install() {
     printf "\n"
     printf "${BOLD}Access URLs:${NC}\n"
     printf "  Web UI (HTTPS):    https://$(hostname):443\n"
-    printf "  API Gateway HTTPS: https://$(hostname):5101\n"
 
     if [ "$ANSIBLE_AVAILABLE" -eq 1 ] && [ "$SKIP_ENCRYPTION" -eq 0 ]; then
         printf "\n"
