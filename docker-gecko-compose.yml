@@ -123,8 +123,12 @@ services:
       - SERVICE_PASSWORD=${SERVICE_PASSWORD}
     networks:
       - internal_network
+    # The web UIs reach the gateway inside internal_network (GATEWAY_HOST=gatewayapi). The
+    # host port skips the frontend nginx, and with it the only senders the gateway trusts for
+    # X-Forwarded-For (gecko-project-backend#1076). 5100 (HTTP) has no client and is not
+    # published. 5101 stays until FileExporter stops putting https://<host>:5101 in export
+    # download links (ExportDownloadPort, gecko-setup#35); the same path works through 443.
     ports:
-      - 5100:5100
       - 5101:5101
     deploy:
       resources:

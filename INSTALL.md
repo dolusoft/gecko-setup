@@ -252,7 +252,7 @@ Infrastructure and application services run as two separate compose stacks shari
 |---------|---------|-------|-----------|
 | frontend | Web UI (Nginx/HTTPS) | 443, 24678 | 0.3 CPU, 150M |
 | docs | Documentation UI | 3015 | 0.3 CPU, 30M |
-| gatewayapi | YARP API Gateway | 5100, 5101 | 0.2 CPU, 80M |
+| gatewayapi | YARP API Gateway | 5101 (export download links; the web UI uses 443) | 0.2 CPU, 80M |
 | coreapi | Central Config | internal | 0.2 CPU, 80M |
 | identityapi | Authentication | internal | 0.2 CPU, 80M |
 | collectorapi | Data Collection | internal | 0.4 CPU, 400M |
@@ -518,8 +518,7 @@ Use `-v` or `--verbose` when troubleshooting authentication, configuration, or s
 ufw allow 443/tcp      # Web UI (HTTPS)
 ufw allow 514/udp      # Syslog receiver
 ufw allow 515/udp      # Syslog receiver (alt)
-ufw allow 5100/tcp     # API Gateway (HTTP)
-ufw allow 5101/tcp     # API Gateway (HTTPS)
+ufw allow 5101/tcp     # API Gateway (HTTPS): export download links in emails/panel
 
 # Optional (admin/debug)
 ufw allow 8124/tcp     # ClickHouse HTTP
